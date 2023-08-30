@@ -1,8 +1,8 @@
-form {
+.subscribe {
   flex-direction:row;
 }
 
-input {
+.subscribe label input {
   flex-grow:2;
   border:none;
   background-color: #4EBCCB;
@@ -31,7 +31,7 @@ input:focus {
   color: #101D42;
 }
 
-button {
+.subscribe label button {
   border:1px solid #101D42;
   background: #101D42;
   color:white;
