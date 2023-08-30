@@ -1,0 +1,89 @@
+.sidebar {
+  padding: 3.5% 1% 1% 1%;
+  height: 100vh;
+  padding-right: 1.5%;
+  box-shadow: rgba(26, 45, 71, 0.48) 6px 0px 6px 0px;
+}
+
+.sidebar form {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  background-color: #242A2E;
+  border-radius: 5px;
+  border-style: solid;
+  border-color: #242A2E;
+  border-bottom-color: #89D2DC;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar form input {
+  border: none;
+  width: 15rem;
+  background-color: #242A2E;
+  padding-left: 5%;
+  color: aliceblue;
+  font-family: 'Figtree', sans-serif;
+}
+
+.search_input::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #89D2DC;
+  opacity: 1; /* Firefox */
+}
+
+.search_input:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: #89D2DC;
+}
+
+.search_input::-ms-input-placeholder { /* Microsoft Edge */
+  color: #89D2DC;
+}
+
+.search_icon {
+  color: #89D2DC;
+  padding-right: 5%;
+}
+
+.sidebar div {
+  color: white;
+  margin-top: 5%;
+}
+
+.user {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  background-color: rgb(0,0,0,0);
+  border: none;
+  width: 15rem;
+}
+
+.user div {
+  padding-top: 0;
+}
+
+.user div p {
+  margin-bottom: 0px;
+  text-align: left;
+  font-family: 'Figtree', sans-serif;
+}
+
+.icon {
+  padding-top: 8.5%;
+  padding-right: 7.5%;
+  color: white;
+}
+
+.online {
+  color: green;
+  font-size: 0.5rem;
+  margin-top: 5%;
+}
+
+.offline {
+  color: red;
+  font-size: 0.5rem;
+  margin-top: 5%;
+}

@@ -2,6 +2,7 @@ module.exports = {
   env: {
     browser: true,
     es2021: true,
+    jest: true,
   },
   extends: 'airbnb',
   overrides: [
@@ -30,6 +31,8 @@ module.exports = {
         unnamedComponents: 'arrow-function',
       },
     ],
-    'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+    'import/no-extraneous-dependencies': 'off',
+    'react/prop-types': 'off',
+    'no-underscore-dangle': ['error', { allow: ['_id', '__v'] }],
   },
 };

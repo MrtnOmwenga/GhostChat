@@ -37,33 +37,35 @@ const Home = () => (
       </section>
 
       <section className={style.section_b}>
-        <div className={style.container_a}>
-          <div className={style.text_container}>
-            <h1> Disposable Accounts, Vanish Without a Trace </h1>
-            <p>
-              {' '}
-              AnonyChat provides users with disposable accounts ensuring
-              that the user experience is tailored around anonymity, because
-              who needs a traceable online footprint?
-              {' '}
-            </p>
+        <div className={style.section__b}>
+          <div className={style.container_a}>
+            <div className={style.text_container}>
+              <h1> Disposable Accounts, Vanish Without a Trace </h1>
+              <p>
+                {' '}
+                AnonyChat provides users with disposable accounts ensuring
+                that the user experience is tailored around anonymity, because
+                who needs a traceable online footprint?
+                {' '}
+              </p>
+            </div>
+            <div className={style.image_container}>
+              <img src={HomeImage2} alt="Image1" />
+            </div>
           </div>
-          <div className={style.image_container}>
-            <img src={HomeImage2} alt="Image1" />
-          </div>
-        </div>
-        <div className={style.container_b}>
-          <div className={style.image_container}>
-            <img src={HomeImage1} alt="Image2" />
-          </div>
-          <div className={style.text_container}>
-            <h1> Secure, Private, and Unique Chat Rooms </h1>
-            <p>
-              {' '}
-              Chat in style through a dark, modern, and mysterious
-              interface. Get ready to delve into the depths where no identity is concealed.
-              {' '}
-            </p>
+          <div className={style.container_b}>
+            <div className={style.image_container}>
+              <img src={HomeImage1} alt="Image2" />
+            </div>
+            <div className={style.text_container}>
+              <h1> Secure, Private, and Unique Chat Rooms </h1>
+              <p>
+                {' '}
+                Chat in style through a dark, modern, and mysterious
+                interface. Get ready to delve into the depths where no identity is concealed.
+                {' '}
+              </p>
+            </div>
           </div>
         </div>
       </section>

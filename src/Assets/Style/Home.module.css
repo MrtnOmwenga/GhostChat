@@ -13,7 +13,7 @@
 
 .t1 {
   position: absolute;
-  top: 7.5%;
+  top: 12.5%;
   left: 10%;
 }
 
@@ -24,7 +24,7 @@
 
 .t2 {
   position: absolute;
-  top: 10%;
+  top: 15%;
   left: 90%;
 }
 
@@ -71,6 +71,10 @@ img {
 
 .section_b {
   background-color: #89D2DC;
+  /* background-image: url('../login-register-removebg.png');
+  background-position: bottom;
+  background-size:contain;
+  object-fit: cover; */
 }
 
 .container_a {
@@ -87,6 +91,7 @@ img {
   font-family: 'Staatliches', sans-serif;
   font-weight: 400;
   font-size: 2em;
+  letter-spacing: 0.2rem;
 }
 
 .text_container p {
@@ -141,6 +146,7 @@ img {
   font-family: 'Staatliches', sans-serif;
   font-weight: 400;
   font-size: 2em;
+  letter-spacing: 0.2rem;
 }
 
 .section_c {
