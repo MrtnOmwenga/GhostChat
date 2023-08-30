@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { FaSistrix, FaCircleUser } from 'react-icons/fa6';
-// import Popup from 'reactjs-popup';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import DataServices from '../Services/Search';
 import style from '../Assets/Style/SideBar.module.css';
-import log from '../Utils/logger';
+// import log from '../Utils/logger';
 
 const SideBar = ({ socket, ChangeUser, token }) => {
   const [search, setSearch] = useState('');
@@ -44,16 +45,21 @@ const SideBar = ({ socket, ChangeUser, token }) => {
         return UserObject;
       });
       setSearchList(SearchList.concat(UpdatedList));
+      if (UpdatedList.length === 0) {
+        setSearchList(SearchList.concat({ username: 'User not found' }));
+      }
     } catch (error) {
-      log.info(error);
+      toast.error(error);
     }
   };
 
   const Select = (object) => {
-    if (chats.indexOf(object) === -1) {
-      setChats(chats.concat(object));
+    if (object.username !== 'User not found') {
+      if (chats.indexOf(object) === -1) {
+        setChats(chats.concat(object));
+      }
+      ChangeUser(object);
     }
-    ChangeUser(object);
     setSearchList([]);
     setSearch('');
   };
@@ -78,6 +84,7 @@ const SideBar = ({ socket, ChangeUser, token }) => {
           </button>
         ))}
       </div>
+      <ToastContainer />
     </div>
   );
 };

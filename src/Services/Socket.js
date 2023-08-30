@@ -4,7 +4,7 @@ import log from '../Utils/logger';
 const Socket = (id, username) => {
   const socket = io('http://localhost:8000');
   socket.on('connect', () => {
-    log.info(`Connected with is ${socket.id}`);
+    log.info(`Connected with id ${socket.id}`);
   });
 
   socket.emit('login', id, username);

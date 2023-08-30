@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaPaperPlane } from 'react-icons/fa6';
 import style from '../Assets/Style/Chat.module.css';
-import log from '../Utils/logger';
+// import log from '../Utils/logger';
 
 const Chat = ({ socket, CurrentUser }) => {
   const [messages, setMessages] = useState([]);
@@ -9,7 +9,6 @@ const Chat = ({ socket, CurrentUser }) => {
 
   socket?.on('receive-message', (message) => {
     setMessages(messages.concat({ message, fromMe: false }));
-    log.info('Received');
   });
 
   const handleSubmit = (event) => {
@@ -25,7 +24,6 @@ const Chat = ({ socket, CurrentUser }) => {
 
   const DisplayMessages = () => {
     const chats = messages.map((message) => {
-      log.info(message);
       if (message.fromMe) {
         return <p className={`${style.message} ${style.from_me}`}>{message.message}</p>;
       }

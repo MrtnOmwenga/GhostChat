@@ -5,20 +5,18 @@ import style from '../Assets/Style/ChatPage.module.css';
 import Socket from '../Services/Socket';
 import Chat from '../Components/Chat';
 import SideBar from '../Components/SideBar';
-import log from '../Utils/logger';
+// import log from '../Utils/logger';
 
 const ChatPage = () => {
   const [socket, setSocket] = useState(null);
   const [CurrentUser, setCurrentUser] = useState(null);
   const location = useLocation();
   const token = location.state;
-  log.info(token);
   const navigate = useNavigate();
 
   useEffect(() => {
     const SocketObject = Socket(token.id, token.username);
     setSocket(SocketObject);
-    log.info('Logged in');
   }, []);
 
   const display = () => {
@@ -31,7 +29,6 @@ const ChatPage = () => {
   const Logout = () => {
     socket.emit('logout', token.id);
     navigate('/login-register');
-    log.info('Logged out');
   };
 
   return (

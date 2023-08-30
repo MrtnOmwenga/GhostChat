@@ -13,11 +13,10 @@ const log = require('./utils/logger');
 let users = [];
 
 io.on('connection', (socket) => {
-  log.info(socket.id);
+  log.info(`${socket.id} connected`);
 
   socket.on('login', (id, username) => {
     const Index = users.findIndex((x) => x.id === id);
-    log.info(Index);
     if (Index === -1) {
       users = users.concat({ id, username, socket_id: socket.id });
     } else {
@@ -25,18 +24,15 @@ io.on('connection', (socket) => {
     }
 
     socket.broadcast.emit('changed-socket', id, 'online', socket.id);
-    log.info(users);
   });
 
   socket.on('status', (id, cb) => {
     const Index = users.findIndex((x) => x.id === id);
-    log.info(Index);
     if (Index === -1) {
       cb('offline', null);
     } else {
       cb('online', users[Index].socket_id);
     }
-    log.info(users);
   });
 
   socket.on('message', (message, to) => {
@@ -47,12 +43,10 @@ io.on('connection', (socket) => {
 
   socket.on('logout', (id) => {
     const Index = users.findIndex((x) => x.id === id);
-    log.info(Index);
     if (Index !== -1) {
       users.splice(Index, 1);
     }
     socket.broadcast.emit('changed-socket', id, 'offline', null);
-    log.info(users);
   });
 });
 
