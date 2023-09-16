@@ -34,7 +34,8 @@
     "build": "react-scripts build",
     "test": "cross-env NODE_ENV=test jest --verbose --runInBand",
     "eject": "react-scripts eject",
-    "server": "nodemon server.js"
+    "server": "nodemon server.js",
+    "production": "node server.js"
   },
   "eslintConfig": {
     "extends": [

@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import style from '../Assets/Style/Login-Register.module.css';
 import LoginService from '../Services/Login';
 import RegisterService from '../Services/Register';
+import Token from '../Services/Token';
 
 // const log = require('../Utils/logger');
 
@@ -39,7 +40,9 @@ const LoginRegister = () => {
     if (state === 'login') {
       try {
         const response = await LoginService.Login({ username, password });
-        navigate('/chatpage', { state: { ...response } });
+        window.localStorage.setItem('token', JSON.stringify(response));
+        Token.SetToken(response.token);
+        navigate('/chatpage');
       } catch (error) {
         toast.error(`${error}`);
       }
@@ -48,6 +51,7 @@ const LoginRegister = () => {
         if (password === pwd) {
           try {
             const response = await RegisterService.Register({ username, password });
+            Token.SetToken(response.token);
             navigate('/chatpage', { state: { ...response } });
           } catch (error) {
             toast.error(`${error}`);
