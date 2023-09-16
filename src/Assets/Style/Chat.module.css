@@ -1,5 +1,6 @@
 .chat {
   width: 70%;
+  margin-top: 3%;
 }
 
 .chat form {
@@ -24,6 +25,7 @@
   border: none;
   background-color: #242A2E;
   color: white;
+  overflow-wrap: break-word;
 }
 
 .chat form input::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
@@ -46,11 +48,11 @@
 
 .send_icon {
   color: #89D2DC;
+  transform: rotate(45deg);
 }
 
 .chat div {
   color: white;
-  margin-top: 5%;
   width: 100%;
   position: relative;
 }
@@ -62,17 +64,32 @@
   text-align: left;
   justify-content: left;
   display: block;
-  margin: 5% 0 5% 0;
   padding: 1% 4% 1.25% 2%;
-  height: 1rem;
+  height: auto;
+  position: relative;
+  overflow-wrap:break-word;
+  max-width: 50%;
+}
+
+.message span {
+  font-size: 0.5rem;
+  position: relative;
 }
 
 .from_me {
   background-color: #89D2DC;
-  position: absolute;
-  right: 0.5%;
 }
 
 .not_from_me {
   background-color: #242A2E;
+}
+
+.select_text {
+  color: #FCFCFC;
+  opacity: 0.25;
+  font-family: 'Figtree', sans-serif;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(0, -50%);
 }
