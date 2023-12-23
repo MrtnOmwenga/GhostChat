@@ -31,7 +31,7 @@ const Home = () => (
             </div>
           </div>
           <div>
-            <img className={style.background} src={background} alt="anonymous" />
+            <img className={style.background} src={background} alt="anonymous" loading="lazy" />
           </div>
         </div>
       </section>
@@ -50,12 +50,12 @@ const Home = () => (
               </p>
             </div>
             <div className={style.image_container}>
-              <img src={HomeImage2} alt="Image1" />
+              <img src={HomeImage2} alt="Image1" loading="lazy" />
             </div>
           </div>
           <div className={style.container_b}>
             <div className={style.image_container}>
-              <img src={HomeImage1} alt="Image2" />
+              <img src={HomeImage1} alt="Image2" loading="lazy" />
             </div>
             <div className={style.text_container}>
               <h1> Secure, Private, and Unique Chat Rooms </h1>

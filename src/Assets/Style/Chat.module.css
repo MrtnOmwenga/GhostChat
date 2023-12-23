@@ -1,12 +1,16 @@
 .chat {
-  width: 70%;
-  margin-top: 3%;
+  margin-top: 2.5em;
+  min-width: 400px;
+}
+
+.ChatContainer {
+  height: 85vh;
+  margin-left: 0.75em;
 }
 
 .chat form {
-  position: absolute;
+  position: fixed;
   bottom: 2.5%;
-  right: 5%;
   width: 60%;
   font-family: 'Figtree', sans-serif;
   align-items: center;
@@ -17,6 +21,8 @@
   background-color: #242A2E;
   border-radius: 15px;
   color: white;
+  overflow-wrap: break-word;
+  margin-left: 0.75em;
 }
 
 .chat form input {
@@ -71,6 +77,23 @@
   max-width: 50%;
 }
 
+.announcement {
+  font-family: 'Figtree', sans-serif;
+  border-radius: 5px;
+  width: fit-content;
+  text-align: left;
+  justify-content: left;
+  display: block;
+  padding: 1% 4% 1.25% 2%;
+  height: auto;
+  position: relative;
+  left: 15vw;
+  overflow-wrap:break-word;
+  max-width: 50%;
+  background-color: #242A2E;
+  font-size: 0.8rem;
+}
+
 .message span {
   font-size: 0.5rem;
   position: relative;
@@ -92,4 +115,5 @@
   top: 50%;
   left: 50%;
   transform: translate(0, -50%);
+  text-align: center;
 }
