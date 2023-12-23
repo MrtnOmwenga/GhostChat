@@ -15,6 +15,7 @@ const ChatPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if user is authenticated and retrieve user data
     const auth = window.localStorage.getItem('token');
     if (auth) {
       const token = JSON.parse(auth);
@@ -27,6 +28,7 @@ const ChatPage = () => {
     }
   }, []);
 
+  // Handle logout
   const Logout = () => {
     window.localStorage.clear();
     socket?.emit('logout', user.id);
@@ -34,10 +36,12 @@ const ChatPage = () => {
     navigate('/login-register');
   };
 
+  // Handle clicking event on the menu bar
   const Click = () => (
     view === 'none' ? setView('block') : setView('none')
   );
 
+  // Content to be displayed
   return (
     <div>
       <FaArrowRightFromBracket size={20} className={style.logout} onClick={Logout} />
@@ -54,11 +58,13 @@ const ChatPage = () => {
           view={view}
           close={Click}
         />
-        <Chat
-          socket={socket}
-          Recipient={Recipient}
-          User={user}
-        />
+        <div className={style.ChatContainer}>
+          <Chat
+            socket={socket}
+            Recipient={Recipient}
+            User={user}
+          />
+        </div>
       </div>
     </div>
   );

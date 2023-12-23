@@ -1,11 +1,19 @@
 .sidebar_container {
-  padding: 3.25% 1% 1% 1%;
+  padding: 40px 1% 1% 1%;
+  box-shadow: rgba(26, 45, 71, 0.48) 6px 0px 6px 0px;
+
+  grid-column-start: 1;
+  width: 32vw;
+  min-width: 250px;
+  max-width: 320px;
 }
 
 .sidebar {
   height: 100vh;
   padding-right: 1.5%;
-  box-shadow: rgba(26, 45, 71, 0.48) 6px 0px 6px 0px;
+  width: 30vw;
+  min-width: 225px;
+  max-width: 300px;
 }
 
 .sidebar form {
@@ -20,6 +28,7 @@
   height: 1.75rem;
   align-items: center;
   justify-content: center;
+  margin-left: 0.75em;
 }
 
 .sidebar form input {

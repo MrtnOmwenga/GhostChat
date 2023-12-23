@@ -5,8 +5,22 @@ import 'react-toastify/dist/ReactToastify.css';
 import Rooms from '../Services/Rooms';
 import style from '../Assets/Style/JoinRoomForm.module.css';
 
+const uuid = require('uuid');
+
+const GetTime = () => {
+  const date = new Date();
+  const hour = date.getHours();
+  let minute = date.getMinutes();
+
+  if (minute <= 9) {
+    minute = `0${minute}`;
+  }
+
+  return { hour, minute };
+};
+
 const JoinRoomForm = ({
-  close, chats, setChats, socket,
+  close, chats, setChats, socket, User,
 }) => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -26,8 +40,16 @@ const JoinRoomForm = ({
         UnreadMessages: false,
       }));
 
+      const time = GetTime();
       socket.emit('join-room', name, response._id, (res) => {
         toast.success(`${res}`);
+        socket.emit('message', {
+          id: uuid.v4(),
+          message: `${User.username} has joined the room`,
+          from: { ...response, status: 'announcement' },
+          to: response._id,
+          time,
+        }, response._id);
       });
       close();
     } catch (exception) {
