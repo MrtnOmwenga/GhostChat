@@ -7,6 +7,10 @@ import SubscribeForm from '../Components/SubscribeForm';
 import Nav from '../Components/Nav';
 // import HomeImage3 from '../Assets/home_image3.png';
 
+/**
+ * The above code is a React component that renders a home page for the website GhostChat, which
+ * promotes anonymity and privacy in online chat rooms.
+ */
 const Home = () => (
   <div className={style.home}>
     <Nav />

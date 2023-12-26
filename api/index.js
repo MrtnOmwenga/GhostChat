@@ -1,4 +1,5 @@
-const app = require('./server'); // the actual Express application
+/* This code is starting a server using the Express framework in JavaScript. */
+const app = require('./server');
 const config = require('./utils/config');
 const log = require('./utils/logger');
 

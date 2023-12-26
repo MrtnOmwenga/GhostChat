@@ -35,5 +35,6 @@ module.exports = {
     'import/no-extraneous-dependencies': 'off',
     'react/prop-types': 'off',
     'no-underscore-dangle': ['error', { allow: ['_id', '__v'] }],
+    'max-len': ['error', { code: 150 }]
   },
 };

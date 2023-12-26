@@ -1,3 +1,6 @@
+/**
+ * This is a React component that sets up the routing for different views in a web application.
+ */
 import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
