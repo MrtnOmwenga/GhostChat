@@ -24,6 +24,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(express.static('build'));
+
 app.use(middlewares.requestLogger);
 app.use(middlewares.TokenExtractor);
 
