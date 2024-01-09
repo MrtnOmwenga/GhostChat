@@ -3,7 +3,7 @@ const { instrument } = require('@socket.io/admin-ui');
 // Instantiate socket
 const io = require('socket.io')(8000, {
   cors: {
-    origin: ['http://localhost:3000', 'https://admin.socket.io/'],
+    origin: ['http://localhost:3000', 'http://localhost:5000', 'https://admin.socket.io/'],
     credentials: true,
   },
 });
