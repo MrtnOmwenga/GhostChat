@@ -1,10 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-
-const UserRoutes = require('./controllers/users');
-const LoginRoutes = require('./controllers/login');
-const RoomsRoutes = require('./controllers/rooms');
+const UserRoutes = require('./controllers/user.controller');
+const LoginRoutes = require('./controllers/login.controller');
+const RoomsRoutes = require('./controllers/room.controller');
 const middlewares = require('./utils/middlewares');
 const log = require('./utils/logger');
 const config = require('./utils/config');
@@ -24,7 +23,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use(express.static('build'));
+// app.use(express.static('build'));
 
 app.use(middlewares.requestLogger);
 app.use(middlewares.TokenExtractor);

@@ -23,6 +23,14 @@
     {
       "username": "Angeline Jolie",
       "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C"
+    },
+    {
+      "username": "Sheldon Cooper",
+      "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C"
+    },
+    {
+      "username": "Rajesh Koothrapali",
+      "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C"
     }
   ]
 }

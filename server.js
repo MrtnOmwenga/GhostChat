@@ -11,7 +11,7 @@ const io = require('socket.io')(8000, {
 // Import dependencies
 const app = require('./App'); // the actual Express application
 const config = require('./utils/config');
-const Queue = require('./Services/Queue');
+const Queue = require('./services/queue.service');
 const log = require('./utils/logger');
 
 // Store online users
