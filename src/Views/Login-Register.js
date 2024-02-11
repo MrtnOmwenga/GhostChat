@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { FaArrowLeftLong } from 'react-icons/fa6';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import style from '../Assets/Style/Login-Register.module.css';
-import LoginService from '../Services/Login';
-import RegisterService from '../Services/Register';
-import Token from '../Services/Token';
-
-// const log = require('../Utils/logger');
+import style from '../assets/style/login-register.module.css';
+import LoginService from '../services/login.service';
+import RegisterService from '../services/register.service';
+import Token from '../services/token.service';
 
 const LoginRegister = () => {
   const [state, setState] = useState('login');
@@ -41,7 +39,7 @@ const LoginRegister = () => {
       try {
         const response = await LoginService.Login({ username, password });
         window.localStorage.setItem('token', JSON.stringify(response));
-        Token.SetToken(response.token);
+        Token.initialize(response.token);
         navigate('/chatpage');
       } catch (error) {
         toast.error(`${error}`);
@@ -51,7 +49,7 @@ const LoginRegister = () => {
         if (password === pwd) {
           try {
             const response = await RegisterService.Register({ username, password });
-            Token.SetToken(response.token);
+            Token.initialize(response.token);
             navigate('/chatpage', { state: { ...response } });
           } catch (error) {
             toast.error(`${error}`);

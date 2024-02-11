@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import MainMenu from './main-menu';
-import CreateRoomForm from './CreateRoomForm';
-import JoinRoomForm from './JoinRoomForm';
+import MainMenu from './main-menu.component';
+import CreateRoomForm from '../forms/create-room.form';
+import JoinRoomForm from '../forms/join-room.form';
 
-const Toggable = ({
-  socket, close, chats, setChats, User,
-}) => {
+const Toggable = ({ close, user }) => {
   const [view, setView] = useState('main-menu');
   const views = {
     'main-menu': MainMenu,
@@ -20,10 +18,7 @@ const Toggable = ({
       <CurrentView
         ChangeView={setView}
         close={close}
-        chats={chats}
-        setChats={setChats}
-        socket={socket}
-        User={User}
+        user={user}
       />
     </div>
   );

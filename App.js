@@ -4,9 +4,9 @@ const mongoose = require('mongoose');
 const UserRoutes = require('./controllers/user.controller');
 const LoginRoutes = require('./controllers/login.controller');
 const RoomsRoutes = require('./controllers/room.controller');
-const middlewares = require('./utils/middlewares');
-const log = require('./utils/logger');
-const config = require('./utils/config');
+const middlewares = require('./utils/middlewares.utils');
+const log = require('./utils/logger.utils');
+const config = require('./utils/config.utils');
 
 mongoose.set('strictQuery', false);
 

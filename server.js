@@ -10,9 +10,9 @@ const io = require('socket.io')(8000, {
 
 // Import dependencies
 const app = require('./App'); // the actual Express application
-const config = require('./utils/config');
+const config = require('./utils/config.utils');
 const Queue = require('./services/queue.service');
-const log = require('./utils/logger');
+const log = require('./utils/logger.utils');
 
 // Store online users
 let users = [];
