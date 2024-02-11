@@ -72,7 +72,6 @@ class SocketService {
   }
 
   send_message(message, status, SocketId) {
-    console.log(status);
     if (status === 'online' || status === 'group') {
       this.socket.emit('message', message, SocketId);
     } else {

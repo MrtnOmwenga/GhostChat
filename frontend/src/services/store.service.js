@@ -1,4 +1,5 @@
 import { createStore } from 'redux';
+import log from '../utils/logger.utils';
 
 // Action Types
 const ADD_MESSAGE = 'ADD_MESSAGE';
@@ -90,7 +91,7 @@ const store = createStore(Reducer);
 
 store.subscribe(() => {
   // Log the current state whenever the store changes
-  console.log('Current state:', store.getState());
+  log.info('Current state:', store.getState());
 });
 
 export default store;

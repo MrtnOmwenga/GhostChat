@@ -15,7 +15,6 @@ const SideBar = ({ user, view, close }) => {
   const [chats, setChats] = useState([]);
   const [SearchList, setSearchList] = useState([]);
 
-  console.log(chats);
   const dispatch = useDispatch();
   const contacts = useSelector((state) => state.contacts);
   useEffect(() => {
@@ -58,9 +57,7 @@ const SideBar = ({ user, view, close }) => {
 
       // Get information of all returned users
       const updatedListPromises = response.map(async (UserObject) => {
-        console.log(UserObject);
         const status = await socket.status(UserObject.id);
-        console.log(status);
         return { ...UserObject, ...status };
       });
 
@@ -89,7 +86,6 @@ const SideBar = ({ user, view, close }) => {
         // Dispatch an action to update the chat with unread messages flag
         dispatch(UpdateContact(object.id, { UnreadMessages: false }));
       }
-      console.log(object);
       dispatch(UpdateRecipient(object));
     }
     setSearchList([]);
