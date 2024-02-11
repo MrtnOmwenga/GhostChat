@@ -1,14 +1,9 @@
 import axios from 'axios';
-
-let token = null;
-
-const SetToken = (newToken) => {
-  token = `Bearer ${newToken}`;
-};
+import token from './token.service';
 
 const CreateRoom = async (name, password) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
   };
 
   const response = await axios.post('/api/rooms', { params: { name, password } }, config)
@@ -20,7 +15,7 @@ const CreateRoom = async (name, password) => {
 
 const JoinRoom = async (name, password) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
   };
 
   const response = await axios.post('/api/rooms/join', { params: { name, password } }, config)
@@ -32,7 +27,7 @@ const JoinRoom = async (name, password) => {
 
 const MyRooms = async (id) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
   };
 
   const response = await axios.get(`/api/rooms/${id}`, config)
@@ -43,5 +38,5 @@ const MyRooms = async (id) => {
 };
 
 export default {
-  CreateRoom, SetToken, JoinRoom, MyRooms,
+  CreateRoom, JoinRoom, MyRooms,
 };

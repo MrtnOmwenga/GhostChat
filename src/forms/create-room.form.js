@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { FaXmark } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
+import { useDispatch } from 'react-redux'; // Import useSelector from react-redux
 import 'react-toastify/dist/ReactToastify.css';
-import Rooms from '../Services/Rooms';
-import style from '../Assets/Style/CreateRoomForm.module.css';
-import log from '../Utils/logger';
+import { AddContact } from '../services/message.service';
+import Rooms from '../services/rooms.service';
+import socket from '../services/socket.service';
+import style from '../assets/form-styles/create-room.module.css';
+import log from '../utils/logger.utils';
 
-const CreateRoomForm = ({
-  close, chats, setChats, socket,
-}) => {
+const CreateRoomForm = ({ close, user }) => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
 
+  const dispatch = useDispatch();
   const NameChange = (event) => (setName(event.target.value));
   const PasswordChange = (event) => (setPassword(event.target.value));
   const ConfirmChange = (event) => (setConfirm(event.target.value));
@@ -23,18 +25,19 @@ const CreateRoomForm = ({
     if (password === confirm) {
       try {
         const response = await Rooms.CreateRoom(name, password);
-        setChats(chats.concat({
+        dispatch(AddContact({
           username: name,
           status: 'group',
-          socket_id: response._id,
+          socket_id: response.id,
           UnreadMessages: false,
         }));
 
-        socket.emit('join-room', name, response._id, (res) => {
+        socket.join_room(user.username, response, (res) => {
           toast.success(`${res}`);
         });
-        close();
         toast.success('Created room');
+
+        close();
       } catch (exception) {
         toast.error(`${exception}`);
       }

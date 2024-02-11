@@ -1,30 +1,18 @@
 import React, { useState } from 'react';
 import { FaXmark } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
+import { useDispatch } from 'react-redux';
 import 'react-toastify/dist/ReactToastify.css';
-import Rooms from '../Services/Rooms';
-import style from '../Assets/Style/JoinRoomForm.module.css';
+import { AddContact } from '../services/message.service';
+import socket from '../services/socket.service';
+import Rooms from '../services/rooms.service';
+import style from '../assets/form-styles/join-room.module.css';
 
-const uuid = require('uuid');
-
-const GetTime = () => {
-  const date = new Date();
-  const hour = date.getHours();
-  let minute = date.getMinutes();
-
-  if (minute <= 9) {
-    minute = `0${minute}`;
-  }
-
-  return { hour, minute };
-};
-
-const JoinRoomForm = ({
-  close, chats, setChats, socket, User,
-}) => {
+const JoinRoomForm = ({ close, user }) => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
 
+  const dispatch = useDispatch();
   const NameChange = (event) => (setName(event.target.value));
   const PasswordChange = (event) => (setPassword(event.target.value));
 
@@ -33,23 +21,17 @@ const JoinRoomForm = ({
 
     try {
       const response = await Rooms.JoinRoom(name, password);
-      setChats(chats.concat({
-        username: name,
+      const RoomObject = {
+        username: response.name,
         status: 'group',
-        socket_id: response._id,
+        id: response.id,
+        socket_id: response.id,
         UnreadMessages: false,
-      }));
+      };
 
-      const time = GetTime();
-      socket.emit('join-room', name, response._id, (res) => {
+      dispatch(AddContact(RoomObject));
+      socket.join_room(user.username, RoomObject, (res) => {
         toast.success(`${res}`);
-        socket.emit('message', {
-          id: uuid.v4(),
-          message: `${User.username} has joined the room`,
-          from: { ...response, status: 'announcement' },
-          to: response._id,
-          time,
-        }, response._id);
       });
       close();
     } catch (exception) {

@@ -1,11 +1,10 @@
 import React from 'react';
-import style from '../Assets/Style/Home.module.css';
-import background from '../Assets/1f3ad.svg';
-import HomeImage1 from '../Assets/home_image2.jpeg';
-import HomeImage2 from '../Assets/home_image3.jpg';
-import SubscribeForm from '../Components/SubscribeForm';
-import Nav from '../Components/Nav';
-// import HomeImage3 from '../Assets/home_image3.png';
+import style from '../assets/style/home.module.css';
+import background from '../assets/1f3ad.svg';
+import HomeImage1 from '../assets/home_image2.jpeg';
+import HomeImage2 from '../assets/home_image3.jpg';
+import SubscribeForm from '../forms/subscribe.form';
+import Nav from '../components/nav.component';
 
 const Home = () => (
   <div className={style.home}>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBars } from 'react-icons/fa';
 import { FaXmark } from 'react-icons/fa6';
-import style from '../Assets/Style/Nav.module.css';
+import style from '../assets/style/nav.module.css';
 
 const Nav = () => {
   const [view, setView] = useState('none');

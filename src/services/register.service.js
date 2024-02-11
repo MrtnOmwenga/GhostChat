@@ -1,11 +1,7 @@
 import axios from 'axios';
+import token from './token.service';
 
 const BaseUrl = '/api/users';
-let token = null;
-
-const SetToken = (newToken) => {
-  token = `Bearer ${newToken}`;
-};
 
 const Register = async (credentials) => {
   const response = await axios.post(BaseUrl, credentials)
@@ -17,7 +13,7 @@ const Register = async (credentials) => {
 
 const DeleteAccount = async (id) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
   };
 
   const response = await axios.delete(`${BaseUrl}/${id}`, config)
@@ -27,4 +23,4 @@ const DeleteAccount = async (id) => {
   return response.data;
 };
 
-export default { Register, DeleteAccount, SetToken };
+export default { Register, DeleteAccount };

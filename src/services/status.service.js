@@ -1,14 +1,9 @@
 import axios from 'axios';
-
-let token = null;
-
-const SetToken = (newToken) => {
-  token = `Bearer ${newToken}`;
-};
+import token from './token.service';
 
 const UpdateUser = async (id, NewObject) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
   };
 
   const response = await axios.put(`/api/users/${id}`, NewObject, config);
@@ -16,5 +11,5 @@ const UpdateUser = async (id, NewObject) => {
 };
 
 export default {
-  UpdateUser, SetToken,
+  UpdateUser,
 };
