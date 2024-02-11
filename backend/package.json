@@ -1,0 +1,31 @@
+{
+  "name": "ghostchat-backend",
+  "version": "1.0.0",
+  "description": "GhostChat backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --verbose --runInBand",
+    "start": "node server.js",
+    "server": "nodemon server.js",
+    "production": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "GhostChat"
+  },
+  "author": "MrtnOmwenga",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.2",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "joi": "^17.12.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.1.1",
+    "nodemon": "^3.0.3",
+    "socket.io": "^4.7.4",
+    "uuid": "^9.0.1"
+  }
+}
