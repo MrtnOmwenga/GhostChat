@@ -1,0 +1,119 @@
+.chat {
+  margin-top: 2.5em;
+  min-width: 400px;
+}
+
+.ChatContainer {
+  height: 85vh;
+  margin-left: 0.75em;
+}
+
+.chat form {
+  position: fixed;
+  bottom: 2.5%;
+  width: 60%;
+  font-family: 'Figtree', sans-serif;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  background-color: #242A2E;
+  border-radius: 15px;
+  color: white;
+  overflow-wrap: break-word;
+  margin-left: 0.75em;
+}
+
+.chat form input {
+  width: 80%;
+  height: 2.5rem;
+  border: none;
+  background-color: #242A2E;
+  color: white;
+  overflow-wrap: break-word;
+}
+
+.chat form input::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #89D2DC;
+  opacity: 1; /* Firefox */
+}
+
+.chat form input:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: #89D2DC;
+}
+
+.chat form input::-ms-input-placeholder { /* Microsoft Edge */
+  color: #89D2DC;
+}
+
+.chat form button {
+  background-color: rgb(0,0,0,0);
+  border: none;
+}
+
+.send_icon {
+  color: #89D2DC;
+  transform: rotate(45deg);
+}
+
+.chat div {
+  color: white;
+  width: 100%;
+  position: relative;
+}
+
+.message {
+  font-family: 'Figtree', sans-serif;
+  border-radius: 5px;
+  width: fit-content;
+  text-align: left;
+  justify-content: left;
+  display: block;
+  padding: 1% 4% 1.25% 2%;
+  height: auto;
+  position: relative;
+  overflow-wrap:break-word;
+  max-width: 50%;
+}
+
+.announcement {
+  font-family: 'Figtree', sans-serif;
+  border-radius: 5px;
+  width: fit-content;
+  text-align: left;
+  justify-content: left;
+  display: block;
+  padding: 1% 4% 1.25% 2%;
+  height: auto;
+  position: relative;
+  left: 15vw;
+  overflow-wrap:break-word;
+  max-width: 50%;
+  background-color: #242A2E;
+  font-size: 0.8rem;
+}
+
+.message span {
+  font-size: 0.5rem;
+  position: relative;
+}
+
+.from_me {
+  background-color: #89D2DC;
+}
+
+.not_from_me {
+  background-color: #242A2E;
+}
+
+.select_text {
+  color: #FCFCFC;
+  opacity: 0.25;
+  font-family: 'Figtree', sans-serif;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(0, -50%);
+  text-align: center;
+}

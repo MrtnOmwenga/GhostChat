@@ -1,0 +1,41 @@
+.subscribe {
+  flex-direction:row;
+}
+
+.subscribe label input {
+  flex-grow:2;
+  border:none;
+  background-color: #4EBCCB;
+  color: #101D42;
+  width: 15em;
+  height: 2.5em;
+  border-radius: 1em 0em 0em 1em;
+  padding-right: 5em;
+  padding-left: 1em;
+}
+
+input:focus {
+  outline: none;
+}
+
+::placeholder { 
+  color: #101D42;
+  opacity: 1;
+}
+
+:-ms-input-placeholder {
+  color: #101D42;
+}
+
+::-ms-input-placeholder {
+  color: #101D42;
+}
+
+.subscribe label button {
+  border:1px solid #101D42;
+  background: #101D42;
+  color:white;
+  border-radius: 0em 1em 1em 0em;
+  height: 2.5em;
+  width: 7.5em;
+}

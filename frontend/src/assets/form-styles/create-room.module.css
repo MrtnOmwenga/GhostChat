@@ -1,0 +1,72 @@
+.close {
+  color: white;
+  margin-top: 5%;
+  margin-left: 85%;
+}
+
+.createroom {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #010101;
+  width: 20em;
+  height: auto;
+  border-radius: 15px;
+  z-index: 2;
+}
+
+.createroom form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  top: 50%;
+  transform: translate(10%, -15%);
+  margin-top: 12.5%;
+}
+
+.createroom input {
+  background-color: #090909;
+  border-radius: 5px 5px 1px 1px;
+  border: none;
+  border-bottom-style: solid;
+  border-bottom-color: #89D2DC;
+  width: 15rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-top: 7.5%;
+  padding-left: 5%;
+}
+
+.createroom input::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: white;
+  opacity: 0.5; /* Firefox */
+}
+
+.createroom input:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: rgb(255,255,255,0.5);
+}
+
+.createroom input::-ms-input-placeholder { /* Microsoft Edge */
+  color: rgb(255,255,255,0.5);
+}
+
+.createroom form button {
+  margin-top: 10%;
+  background-color: #010101;
+  border-style: solid;
+  border-color: #89D2DC;
+  width: 8rem;
+  height: 2.5rem;
+  color: #89D2DC;
+  font-family: 'Figtree', sans-serif;
+  border-radius: 7.5px;
+  transform: translate(50%, 0%);
+}
+
+.createroom form button:hover {
+  color: #090909;
+  background-color: #89D2DC;
+}

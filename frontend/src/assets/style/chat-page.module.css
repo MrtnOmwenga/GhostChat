@@ -1,0 +1,43 @@
+.bar {
+  width: 100%;
+  height: 2.25rem;
+  background-color: #89D2DC;
+  position: fixed;
+  top: 0;
+}
+
+.bar .menu {
+  margin-top: 0.5em;
+  margin-left: 1em;
+  display: inline-block;
+}
+
+.bar p {
+  position: fixed;
+  top: 0;
+  margin-top: 0.2em;
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.25em;
+  display: inline-block;
+  padding-left: 0.5em;
+}
+
+.chatpage {
+  display: grid;
+  /* flex-direction: row;
+  flex-wrap: nowrap; */
+  padding-top: 1.5%;
+}
+
+.ChatContainer {
+  grid-column-start: 2;
+  width: 65vw;
+}
+
+.logout {
+  color: #0D1317;
+  position: fixed;
+  top: 0.75%;
+  right: 1.5%;
+  z-index: 2;
+}

@@ -1,0 +1,19 @@
+{
+"rooms": [
+      {
+        "name": "Cool Group",
+        "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C",
+        "creator": "64ef7f29900c6af9d353c29b"
+      },
+      {
+        "name": "Reddit",
+        "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C",
+        "creator": "64ef7f29900c6af9d353c29b"
+      },
+      {
+        "name": "Anonymous",
+        "password": "$2a$10$m.LqguHbxRa4UKzCw.t6mudaRPZrethCZsSS9FpZMuttaM476T5.C",
+        "creator": "64ef7f29900c6af9d353c29b"
+      }
+    ]
+}
