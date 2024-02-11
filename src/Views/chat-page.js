@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRightFromBracket, FaBars, FaXmark } from 'react-icons/fa6';
-import style from '../Assets/Style/ChatPage.module.css';
-import Socket from '../Services/Socket';
-import Chat from '../Components/Chat';
-import SideBar from '../Components/SideBar';
-import log from '../Utils/logger';
+import style from '../assets/style/chat-page.module.css';
+import socket from '../services/socket.service';
+import Chat from '../components/chat.component';
+import SideBar from '../components/sidebar.component';
+import log from '../utils/logger.utils';
 
 const ChatPage = () => {
-  const [socket, setSocket] = useState(null);
-  const [Recipient, setRecipient] = useState(null);
   const [user, setUser] = useState(null);
   const [view, setView] = useState('none');
   const navigate = useNavigate();
@@ -21,8 +19,9 @@ const ChatPage = () => {
       const token = JSON.parse(auth);
       delete token.token;
       setUser(token);
-      const SocketObject = Socket(token.id, token.username);
-      setSocket(SocketObject);
+
+      // Initialize socket
+      socket.initialize(token);
     } else {
       log.info('error');
     }
@@ -31,8 +30,7 @@ const ChatPage = () => {
   // Handle logout
   const Logout = () => {
     window.localStorage.clear();
-    socket?.emit('logout', user.id);
-    socket?.disconnect();
+    socket.logout(user);
     navigate('/login-register');
   };
 
@@ -52,17 +50,13 @@ const ChatPage = () => {
       </div>
       <div className={style.chatpage}>
         <SideBar
-          socket={socket}
-          ChangeUser={setRecipient}
-          User={user}
+          user={user}
           view={view}
           close={Click}
         />
         <div className={style.ChatContainer}>
           <Chat
-            socket={socket}
-            Recipient={Recipient}
-            User={user}
+            user={user}
           />
         </div>
       </div>

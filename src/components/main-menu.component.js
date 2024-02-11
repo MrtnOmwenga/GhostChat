@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { FaXmark } from 'react-icons/fa6';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import style from '../Assets/Style/main-menu.module.css';
-import Register from '../Services/Register';
-import Rooms from '../Services/Rooms';
-// import log from '../Utils/logger';
+import { useDispatch } from 'react-redux';
+import { AddContact } from '../services/message.service';
+import socket from '../services/socket.service';
+import style from '../assets/style/main-menu.module.css';
+import Register from '../services/register.service';
+import Rooms from '../services/rooms.service';
 
 const MainMenu = ({
-  ChangeView, close, chats, setChats, socket, User,
+  ChangeView, close, user,
 }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const CreateRoom = () => {
     ChangeView('create-room');
@@ -22,33 +25,33 @@ const MainMenu = ({
   };
 
   const MyRoom = async () => {
-    const response = await Rooms.MyRooms(User.id);
+    const response = await Rooms.MyRooms(user.id);
 
     if (response.length === 0) {
       toast.error('You have no active rooms');
     }
 
-    const List = [];
     response.forEach((room) => {
-      List.push({
+      const RoomObject = {
         username: room.name,
         status: 'group',
-        socket_id: room._id,
+        socket_id: room.id,
         UnreadMessages: false,
-      });
+      };
 
-      socket.emit('join-room', room.name, room._id, (res) => {
+      socket.join_room(room.name, user.username, RoomObject, (res) => {
         toast.success(`${res}`);
       });
+
+      dispatch(AddContact(room));
     });
-    setChats(chats.concat(List));
     close();
   };
 
   const DeleteAccount = async () => {
     try {
-      await Register.DeleteAccount(User.id);
-      socket.emit('logout', User.id);
+      await Register.DeleteAccount(user.id);
+      socket.logout(user.id);
       navigate('/login-register');
     } catch (error) {
       toast.error(`${error}`);

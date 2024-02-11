@@ -1,14 +1,9 @@
 import axios from 'axios';
-
-let token = null;
-
-const SetToken = (newToken) => {
-  token = `Bearer ${newToken}`;
-};
+import token from './token.service';
 
 const Search = async (username, user) => {
   const config = {
-    headers: { Authorization: token },
+    headers: { Authorization: `Bearer ${token.getToken()}` },
     params: { username, user },
   };
 
@@ -20,5 +15,5 @@ const Search = async (username, user) => {
 };
 
 export default {
-  Search, SetToken,
+  Search,
 };
