@@ -41,21 +41,21 @@ This project is an anonymous chat application built using React, Express, and So
 
 2. Install dependencies:
 
-  ```bash
-  cd GhostChat
-  npm install
-  ```
+   ```bash
+   cd GhostChat
+   npm install
+   ```
 
 2. Configure environment variables.
 
 4. Start the backend development server:
 
-  ```bash
-  npm run server
-  ```
+   ```bash
+   npm run server
+   ```
 
 5. Start frontend development server
 
-  ```bash
-  npm start
-  ```
+   ```bash
+   npm start
+   ```
