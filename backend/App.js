@@ -1,12 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 const UserRoutes = require('./controllers/user.controller');
 const LoginRoutes = require('./controllers/login.controller');
 const RoomsRoutes = require('./controllers/room.controller');
 const middlewares = require('./utils/middlewares.utils');
 const log = require('./utils/logger.utils');
 const config = require('./utils/config.utils');
+const options = require('./utils/options.utils');
+
 
 // Connect to database
 mongoose.set('strictQuery', false);
@@ -33,5 +37,8 @@ app.use(middlewares.TokenExtractor);
 app.use('/api/users', UserRoutes);
 app.use('/api/rooms', RoomsRoutes);
 app.use('/services/login', LoginRoutes);
+
+const specs = swaggerJsdoc(options);
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 module.exports = app;
