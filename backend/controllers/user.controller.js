@@ -6,6 +6,63 @@ const Users = require('../models/user.model.js');
 const { ValidateUser, ValidateMongoId, UserExists, isUsernameUnique } = require('../services/user-validator.service.js');
 require('express-async-errors');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management endpoints
+ */
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     tags: [Users]
+ *     summary: Retrieve all users
+ *     description: Retrieve a list of all users
+ *     responses:
+ *       '200':
+ *         description: A list of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ *   post:
+ *     tags: [Users]
+ *     summary: Create a new user
+ *     description: Create a new user with a unique username and password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 username:
+ *                   type: string
+ *                 id:
+ *                   type: string
+ *       '400':
+ *         description: Validation error or username already exists
+ *       '401':
+ *         description: Unauthorized request
+ */
 UserRoutes.get('/', async (request, response) => {
   // Check that user is validated
   if (!request.token) {
@@ -16,6 +73,38 @@ UserRoutes.get('/', async (request, response) => {
   return response.json(users);
 });
 
+/**
+ * @swagger
+ * /users/search:
+ *   get:
+ *     tags: [Users]
+ *     summary: Search for users
+ *     description: Retrieve a list of users based on username search
+ *     parameters:
+ *       - in: query
+ *         name: username
+ *         required: true
+ *         description: Username to search for
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: user
+ *         required: true
+ *         description: Current user's username
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: A list of users matching the search criteria
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ *       '401':
+ *         description: Unauthorized request
+ */
 UserRoutes.get('/search', async (request, response) => {
   const { username, user } = request.query;
 
@@ -33,6 +122,84 @@ UserRoutes.get('/search', async (request, response) => {
   return response.json(users);
 });
 
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     tags: [Users]
+ *     summary: Retrieve a user by ID
+ *     description: Retrieve a user's details by their ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user to retrieve
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: User found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       '400':
+ *         description: Invalid ID format
+ *       '401':
+ *         description: Unauthorized request
+ *       '404':
+ *         description: User not found
+ *   put:
+ *     tags: [Users]
+ *     summary: Update a user by ID
+ *     description: Update a user's details by their ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user to update
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/User'
+ *     responses:
+ *       '200':
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       '400':
+ *         description: Validation error or invalid ID format
+ *       '401':
+ *         description: Unauthorized request
+ *       '404':
+ *         description: User not found
+ *   delete:
+ *     tags: [Users]
+ *     summary: Delete a user by ID
+ *     description: Delete a user by their ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user to delete
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '204':
+ *         description: User deleted successfully
+ *       '400':
+ *         description: Invalid ID format
+ *       '401':
+ *         description: Unauthorized request
+ *       '404':
+ *         description: User not found
+ */
 UserRoutes.get('/:id', async (request, response) => {
   // Check that user is validated
   if (!request.token) {
@@ -158,5 +325,26 @@ UserRoutes.delete('/:id', async (request, response) => {
   await Users.deleteOne({ _id: new ObjectId(request.params.id) });
   return response.status(204).end();
 });
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Unique identifier for the user
+ *         username:
+ *           type: string
+ *           description: Username of the user
+ *         password:
+ *           type: string
+ *           description: Password of the user
+ *       required:
+ *         - username
+ *         - password
+ */
 
 module.exports = UserRoutes;
