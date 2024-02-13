@@ -1,4 +1,4 @@
-// Instantiate socket
+const redis = require('redis');
 const io = require('socket.io')(8000, {
   cors: {
     origin: ['http://localhost:3000', 'http://localhost:5000'],
@@ -6,92 +6,83 @@ const io = require('socket.io')(8000, {
   },
 });
 
-// Import dependencies
-const app = require('./App'); // the actual Express application
+const app = require('./App');
 const config = require('./utils/config.utils');
-const Queue = require('./services/queue.service');
 const log = require('./utils/logger.utils');
 
-// Store online users
-let users = [];
+// Initialize clientStack
+const client = redis.createClient({
+  // Enable legacy mode for compatibility with older versions of Node Redis
+  legacyMode: true
+});
+
+// Connect to Redis
+client.connect().catch(console.error);
+
+// Handle errors
+client.on('error', (error) => {
+  console.error('Redis client error:', error);
+});
 
 // Socket methods
 io.on('connection', (socket) => {
   // Log connection
   log.info(`${socket.id} connected`);
 
-  // Add to list of onlune users
-  socket.on('login', (id, username) => {
-    const Index = users.findIndex((x) => x.id === id);
-    if (Index === -1) {
-      users = users.concat({ id, username, socket_id: socket.id });
-    } else {
-      users[Index] = { id, username, socket_id: socket.id };
+  // Add to list of online users and inform other users
+  socket.on('login', async (id, username) => {
+    try {
+      await client.set(`online_users:${id}`, socket.id);
+      socket.broadcast.emit('changed-socket', id, 'online', socket.id);
+    } catch (error) {
+      console.error(error);
     }
-
-    // Inform other users that you're online
-    socket.broadcast.emit('changed-socket', id, 'online', socket.id);
   });
 
   // Handle change of user status
-  socket.on('status', (id, cb) => {
-    const Index = users.findIndex((x) => x.id === id);
-    if (Index === -1) {
+  socket.on('status', async (id, cb) => {
+    try {
+      const socketId = await client.get(`online_users:${id}`);
+      cb(socketId ? 'online' : 'offline', socketId);
+    } catch (error) {
+      console.error(error);
       cb('offline', null);
-    } else {
-      cb('online', users[Index].socket_id);
     }
   });
 
   // Handle sending of messages
-  socket.on('message', (message, to) => {
-    if (to !== '') {
-      socket.to(to).emit('receive-message', message);
+  socket.on('message', async (message, to) => {
+    try {
+      const socketId = await client.get(`online_users:${to}`);
+      if (socketId) {
+        io.to(socketId).emit('receive-message', message);
+      } else {
+        await client.lpush(`offline_messages:${to}`, JSON.stringify(message));
+      }
+    } catch (error) {
+      console.error(error);
     }
-  });
-
-  // Handle storing of messages sent to offline users
-  socket.on('offline-queue', (message) => {
-    const index = Queue.OfflineQueue.findIndex((object) => object.to === message.to);
-    if (index === -1) {
-      Queue.OfflineQueue.push({
-        to: message.to,
-        messages: [
-          { ...message },
-        ],
-      });
-    } else {
-      Queue.OfflineQueue[index].messages.push({ ...message });
-    }
-  });
-
-  // Handle users coming back online with messages sent to them while they were offline
-  socket.on('now-online', (id, cb) => {
-    const NewMessages = Queue.OfflineQueue.filter((message) => message.to === id);
-    cb(NewMessages[0]?.messages);
-  });
-
-  // handle joining of rooms
-  socket.on('join-room', (name, id, cb) => {
-    if (name !== '' && id) {
-      socket.join(id);
-      cb(`Joined ${name}`);
-      return;
-    }
-    cb('Room not found');
   });
 
   // Handle logging out
-  socket.on('logout', (id) => {
-    const Index = users.findIndex((x) => x.id === id);
-    if (Index !== -1) {
-      users.splice(Index, 1);
+  socket.on('logout', async (id) => {
+    try {
+      await client.del(`online_users:${id}`);
+      await client.del(`offline_messages:${id}`);
+      socket.broadcast.emit('changed-socket', id, 'offline', null);
+    } catch (error) {
+      console.error(error);
     }
-    const index = Queue.OfflineQueue.findIndex((x) => x.to === id);
-    if (index !== -1) {
-      Queue.OfflineQueue.splice(index, 1);
-    }
-    socket.broadcast.emit('changed-socket', id, 'offline', null);
+  });
+});
+
+// Listen for server shutdown
+process.on('SIGINT', () => {
+  // Gracefully close the Redis client
+  client.quit(() => {
+    console.log('Redis client disconnected');
+    // Exit the process
+    process.exit();
   });
 });
 

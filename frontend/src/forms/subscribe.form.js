@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import style from '../assets/form-styles/subscribe.module.css';
+import SubStyle from '../assets/form-styles/subscribe.module.css';
 
 const SubscribeForm = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +19,7 @@ const SubscribeForm = () => {
   };
 
   return (
-    <form className={style.subscribe} onSubmit={handleSubmit}>
+    <form className={SubStyle.subscribe} onSubmit={handleSubmit}>
       <label htmlFor="email">
         <input type="email" id="email" name="email" onChange={onChange} placeholder="example@gmail.com" />
         <button type="submit"> Submit </button>

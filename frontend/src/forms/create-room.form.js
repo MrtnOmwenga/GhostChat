@@ -6,7 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AddContact } from '../services/message.service';
 import Rooms from '../services/rooms.service';
 import socket from '../services/socket.service';
-import style from '../assets/form-styles/create-room.module.css';
+import CRstyle from '../assets/form-styles/create-room.module.css';
 import log from '../utils/logger.utils';
 
 const CreateRoomForm = ({ close, user }) => {
@@ -48,13 +48,14 @@ const CreateRoomForm = ({ close, user }) => {
   };
 
   return (
-    <div className={style.createroom}>
-      <FaXmark className={style.close} size={20} onClick={close} />
+    <div className={CRstyle.createroom}>
+      <FaXmark className={CRstyle.close} size={20} onClick={close} />
+      <h3>Create Room</h3>
       <form onSubmit={Submit}>
         <input type="text" placeholder="Name" value={name} onChange={NameChange} />
         <input type="password" placeholder="Password" value={password} onChange={PasswordChange} />
         <input type="password" placeholder="Confirm Password" value={confirm} onChange={ConfirmChange} />
-        <button type="submit">Create Room</button>
+        <button type="submit">Submit</button>
       </form>
     </div>
   );
