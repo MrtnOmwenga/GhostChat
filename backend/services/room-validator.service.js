@@ -18,6 +18,7 @@ const isRoomNameUnique = async (value, helpers) => {
   }
 }
 
+// Check if room exists
 const RoomExists = async (value) => {
   const room = await Rooms.findById(value);
   if (!room) {
@@ -27,6 +28,7 @@ const RoomExists = async (value) => {
   return value
 }
 
+// Check if room name is used
 const RoomNameExists = async (value) => {
   const room = await Rooms.find({ name: value });
   if (!room) {
@@ -45,20 +47,24 @@ const validateMongoId = (value, helpers) => {
   return value;
 }
 
+// Room validation contraints
 const roomSchema = Joi.string().required().min(3).messages({
   'any.required': 'Room name is required.',
   'string.empty': 'Room name cannot be empty.',
   'string.min': 'Room name must have at least 3 characters.',
 });
 
+// Password validation constraints
 const passwordSchema = Joi.string().min(6).required().messages({
   'any.required': 'Password is required.',
   'string.empty': 'Password cannot be empty.',
   'string.min': 'Password must be at least 6 characters long.',
 });
 
+// ID validation requirements
 const idSchema = Joi.string().custom(validateMongoId, 'MongoDB ID validation')
 
+// Validate join credentials
 const ValidateJoin = (join) => {
   const schema = Joi.object({
     name: roomSchema.custom(RoomNameExists, 'room exists validation'),
@@ -68,6 +74,7 @@ const ValidateJoin = (join) => {
   return schema.validate(join);
 }
 
+// Validate room object
 const ValidateRoom = (room) => {
   const schema = Joi.object({
     name: roomSchema,
@@ -77,6 +84,7 @@ const ValidateRoom = (room) => {
   return schema.validate(room);
 }
 
+// Validate Mongo ID
 const ValidateMongoId = (id) => {
   return idSchema.custom(RoomExists, 'Check if room exists').validate(id);
 }

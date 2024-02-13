@@ -6,7 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useDispatch } from 'react-redux';
 import { AddContact } from '../services/message.service';
 import socket from '../services/socket.service';
-import style from '../assets/style/main-menu.module.css';
+import MainStyle from '../assets/style/main-menu.module.css';
 import Register from '../services/register.service';
 import Rooms from '../services/rooms.service';
 
@@ -59,8 +59,8 @@ const MainMenu = ({
   };
 
   return (
-    <div className={style.mainmenu}>
-      <FaXmark className={style.close} size={20} onClick={close} />
+    <div className={MainStyle.mainmenu}>
+      <FaXmark className={MainStyle.close} size={20} onClick={close} />
       <ul>
         <li>
           <button type="button" onClick={CreateRoom}>Create Room</button>

@@ -4,7 +4,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSelector, useDispatch } from 'react-redux'; // Import useSelector from react-redux
 import DataServices from '../services/search.service';
-import style from '../assets/style/sidebar.module.css';
+import SBstyle from '../assets/style/sidebar.module.css';
 import socket from '../services/socket.service';
 import ToggableMenu from './toggable.component';
 import { AddContact, UpdateContact, UpdateRecipient } from '../services/message.service';
@@ -96,33 +96,30 @@ const SideBar = ({ user, view, close }) => {
   const ListToDisplay = SearchList.length !== 0 ? SearchList : chats;
 
   return (
-    <div className={style.sidebar_container}>
-      <div className={style.sidebar}>
+    <div className={SBstyle.sidebar_container}>
+      <div className={SBstyle.sidebar}>
         {view !== 'none' && (
         <ToggableMenu
-          socket={socket}
           close={close}
-          chats={chats}
-          setChats={setChats}
           user={user}
         />
         )}
-        <form onSubmit={Search}>
-          <input className={style.search_input} type="text" placeholder="New Chat" value={search} onChange={HandleChange} />
-          <FaSistrix className={style.search_icon} onClick={Search} />
+        <form onSubmit={Search} className={SBstyle.sidebar_form}>
+          <input className={SBstyle.search_input} type="text" placeholder="New Chat" value={search} onChange={HandleChange} />
+          <FaSistrix className={SBstyle.search_icon} onClick={Search} />
         </form>
         <div>
           {ListToDisplay.map((chat) => (
-            <button type="button" className={style.user} onClick={() => Select(chat)}>
-              <FaCircleUser size={37.5} className={style.icon} />
+            <button type="button" className={SBstyle.user} onClick={() => Select(chat)}>
+              <FaCircleUser size={37.5} className={SBstyle.icon} />
               <div>
                 <p>
                   {chat.username}
                   &nbsp; &nbsp;
-                  {chat.UnreadMessages && <FaC size={10} className={style.unread_messages} />}
+                  {chat.UnreadMessages && <FaC size={10} className={SBstyle.unread_messages} />}
                 </p>
-                {chat.status === 'online' && <p className={style.online}>Online</p>}
-                {chat.status === 'offline' && <p className={style.offline}>Offline</p>}
+                {chat.status === 'online' && <p className={SBstyle.online}>Online</p>}
+                {chat.status === 'offline' && <p className={SBstyle.offline}>Offline</p>}
               </div>
             </button>
           ))}

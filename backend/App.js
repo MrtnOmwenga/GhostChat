@@ -8,6 +8,7 @@ const middlewares = require('./utils/middlewares.utils');
 const log = require('./utils/logger.utils');
 const config = require('./utils/config.utils');
 
+// Connect to database
 mongoose.set('strictQuery', false);
 
 log.info(`connecting to ${config.MONGODB_URI}`);
@@ -28,6 +29,7 @@ app.use(express.json());
 app.use(middlewares.requestLogger);
 app.use(middlewares.TokenExtractor);
 
+// Register routes
 app.use('/api/users', UserRoutes);
 app.use('/api/rooms', RoomsRoutes);
 app.use('/services/login', LoginRoutes);

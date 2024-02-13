@@ -6,7 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AddContact } from '../services/message.service';
 import socket from '../services/socket.service';
 import Rooms from '../services/rooms.service';
-import style from '../assets/form-styles/join-room.module.css';
+import JRstyle from '../assets/form-styles/join-room.module.css';
 
 const JoinRoomForm = ({ close, user }) => {
   const [name, setName] = useState('');
@@ -40,12 +40,13 @@ const JoinRoomForm = ({ close, user }) => {
   };
 
   return (
-    <div className={style.joinroom}>
-      <FaXmark className={style.close} size={20} onClick={close} />
+    <div className={JRstyle.joinroom}>
+      <FaXmark className={JRstyle.close} size={20} onClick={close} />
+      <h3>Join Room</h3>
       <form onSubmit={Submit}>
         <input type="text" placeholder="Name" value={name} onChange={NameChange} />
         <input type="password" placeholder="Password" value={password} onChange={PasswordChange} />
-        <button type="submit">Join Room</button>
+        <button type="submit">Submit</button>
       </form>
     </div>
   );
