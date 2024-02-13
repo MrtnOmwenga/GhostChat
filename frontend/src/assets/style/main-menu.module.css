@@ -10,7 +10,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: #010101;
-  width: 15em;
+  width: 18em;
   height: auto;
   border-radius: 15px;
   z-index: 2;
@@ -20,7 +20,7 @@
   list-style: none;
   position: relative;
   top: 50%;
-  transform: translate(10%, -20%);
+  transform: translate(15%, -12.5%);
 }
 
 .mainmenu ul li {

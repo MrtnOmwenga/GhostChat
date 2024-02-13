@@ -4,7 +4,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: #010101;
-  width: 20em;
+  width: 22.5em;
   height: auto;
   border-radius: 15px;
   z-index: 2;
@@ -13,13 +13,19 @@
 .close {
   color: white;
   margin-top: 5%;
-  margin-left: 85%;
+  margin-left: 90%;
+}
+
+.joinroom h3 {
+  font-family: 'Figtree', sans-serif;
+  color: #89D2DC;
+  margin-left: 15%;
 }
 
 .joinroom form {
   position: relative;
   top: 50%;
-  transform: translate(10%, -15%);
+  transform: translate(14%, -15%);
   margin-top: 12.5%;
 }
 
@@ -28,7 +34,6 @@
   border-radius: 5px;
   border-style: solid;
   border-color: #242A2E;
-  border-bottom-color: #89D2DC;
   width: 15rem;
   height: 2rem;
   align-items: center;
@@ -39,32 +44,27 @@
 }
 
 .joinroom input::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
-  color: #89D2DC;
-  opacity: 1; /* Firefox */
+  color: white;
+  opacity: 0.5; /* Firefox */
 }
 
 .joinroom input:-ms-input-placeholder { /* Internet Explorer 10-11 */
-  color: #89D2DC;
+  color: rgb(255,255,255,0.5);
 }
 
 .joinroom input::-ms-input-placeholder { /* Microsoft Edge */
-  color: #89D2DC;
+  color: rgb(255,255,255,0.5);
 }
 
 .joinroom form button {
   margin-top: 10%;
-  background-color: #010101;
+  background-color: #89D2DC;
   border-style: solid;
   border-color: #89D2DC;
   width: 8rem;
   height: 2.5rem;
-  color: #89D2DC;
+  color: #090909;
   font-family: 'Figtree', sans-serif;
   border-radius: 7.5px;
   transform: translate(50%, 0%);
-}
-
-.joinroom form button:hover {
-  color: white;
-  background-color: #89D2DC;
 }

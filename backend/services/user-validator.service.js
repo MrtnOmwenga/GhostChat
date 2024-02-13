@@ -18,6 +18,7 @@ const isUsernameUnique = async (value, helpers) => {
   }
 }
 
+// Check if user exists
 const UserExists = async (value) => {
   try {
     const user = await Users.findById(value);
@@ -42,20 +43,24 @@ const validateMongoId = (value, helpers) => {
   return value;
 }
 
+// Username validation requirements
 const usernameSchema = Joi.string().required().min(3).messages({
   'any.required': 'Username is required.',
   'string.empty': 'Username cannot be empty.',
   'string.min': 'Username must have at least 3 characters.',
 });
 
+// Password validation requirements
 const passwordSchema = Joi.string().min(6).required().messages({
   'any.required': 'Password is required.',
   'string.empty': 'Password cannot be empty.',
   'string.min': 'Password must be at least 6 characters long.',
 });
 
+// ID validation reqiorements
 const idSchema = Joi.string().custom(validateMongoId, 'MongoDB ID validation')
 
+// Validation for user object
 const ValidateUser = (user) => {
   const schema = Joi.object({
     username: usernameSchema,
@@ -65,10 +70,12 @@ const ValidateUser = (user) => {
   return schema.validate(user);
 }
 
+// Validate ID
 const ValidateMongoId = (id) => {
   return idSchema.validate(id);
 }
 
+// Validate login credentials
 const ValidateLogin = (login) => {
   const schema = Joi.object({
     username: usernameSchema,

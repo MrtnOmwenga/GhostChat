@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import socket from '../services/socket.service';
-import style from '../assets/style/chat.module.css';
+import ChatStyle from '../assets/style/chat.module.css';
 import GetTime from '../services/time.service';
 // import log from '../utils/logger.utils';
 
@@ -56,8 +56,8 @@ const Chat = ({ user }) => {
     const chats = ChatsToDisplay?.map((message) => {
       if (message && message.fromMe) {
         return (
-          <div className={style.message_container}>
-            <p className={`${style.message} ${style.from_me}`}>
+          <div className={ChatStyle.message_container}>
+            <p className={`${ChatStyle.message} ${ChatStyle.from_me}`}>
               {message.message}
               <br />
               <span>{`${message.time.hour}:${message.time.minute}`}</span>
@@ -67,8 +67,8 @@ const Chat = ({ user }) => {
       }
       if (message.from.status !== 'announcement') {
         return (
-          <div className={style.message_container}>
-            <p className={`${style.message} ${style.not_from_me}`}>
+          <div className={ChatStyle.message_container}>
+            <p className={`${ChatStyle.message} ${ChatStyle.not_from_me}`}>
               {message.from.status === 'group' && (
               <span>
                 {message.from.sender}
@@ -84,8 +84,8 @@ const Chat = ({ user }) => {
       }
 
       return (
-        <div className={style.message_container}>
-          <p className={`${style.announcement}`}>
+        <div className={ChatStyle.message_container}>
+          <p className={`${ChatStyle.announcement}`}>
             {message.message}
           </p>
         </div>
@@ -98,11 +98,11 @@ const Chat = ({ user }) => {
   // Content to be displayed on the screen
   const display = () => {
     if (recipient === null) {
-      return <p className={style.select_text}>Search and select a user to start messaging</p>;
+      return <p className={ChatStyle.select_text}>Search and select a user to start messaging</p>;
     }
     return (
-      <div className={style.chat}>
-        <div className={style.ChatContainer}>
+      <div className={ChatStyle.chat}>
+        <div className={ChatStyle.ChatContainer}>
           {DisplayMessages()}
         </div>
         <form onSubmit={handleSubmit}>

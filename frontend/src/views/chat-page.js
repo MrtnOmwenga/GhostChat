@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRightFromBracket, FaBars, FaXmark } from 'react-icons/fa6';
-import style from '../assets/style/chat-page.module.css';
+import CPstyle from '../assets/style/chat-page.module.css';
 import socket from '../services/socket.service';
 import Chat from '../components/chat.component';
 import SideBar from '../components/sidebar.component';
@@ -42,19 +42,19 @@ const ChatPage = () => {
   // Content to be displayed
   return (
     <div>
-      <FaArrowRightFromBracket size={20} className={style.logout} onClick={Logout} />
-      <div className={style.bar}>
-        { view === 'none' && <FaBars className={style.menu} onClick={Click} /> }
-        { view !== 'none' && <FaXmark className={style.menu} onClick={Click} />}
+      <FaArrowRightFromBracket size={20} className={CPstyle.logout} onClick={Logout} />
+      <div className={CPstyle.bar}>
+        { view === 'none' && <FaBars className={CPstyle.menu} onClick={Click} /> }
+        { view !== 'none' && <FaXmark className={CPstyle.menu} onClick={Click} />}
         <p>GhostChat</p>
       </div>
-      <div className={style.chatpage}>
+      <div className={CPstyle.chatpage}>
         <SideBar
           user={user}
           view={view}
           close={Click}
         />
-        <div className={style.ChatContainer}>
+        <div className={CPstyle.ChatContainer}>
           <Chat
             user={user}
           />

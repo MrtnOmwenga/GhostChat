@@ -16,7 +16,7 @@
   max-width: 300px;
 }
 
-.sidebar form {
+.sidebar .sidebar_form {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
@@ -31,7 +31,7 @@
   margin-left: 0.75em;
 }
 
-.sidebar form input {
+.sidebar .sidebar_form input {
   border: none;
   width: 15rem;
   background-color: #242A2E;
@@ -60,7 +60,6 @@
 
 .sidebar div {
   color: white;
-  margin-top: 5%;
 }
 
 .user {
