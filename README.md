@@ -46,7 +46,14 @@ This project is an anonymous chat application built using React, Express, and So
    npm install
    ```
 
-2. Configure environment variables.
+3. Configure environment variables.
+
+4. Start and run a redis stack container
+
+   ```bash
+   docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+   docker exec -it redis-stack redis-cli
+   ```
 
 4. Start the backend development server:
 
