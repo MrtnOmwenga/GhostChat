@@ -95,7 +95,7 @@ describe('POST /api/rooms', () => {
       .send({ params: validRoomData });
 
     expect(response.status).toBe(201);
-    expect(response.body).toHaveProperty('_id');
+    expect(response.body).toHaveProperty('id');
     expect(response.body.name).toBe(validRoomData.name);
     expect(response.body.creator).toEqual(auth);
   });
@@ -142,7 +142,7 @@ describe('POST /api/rooms/join', () => {
       .send({ params: { name: 'ExistingRoom', password: validRoomData.password } });
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('_id');
+    expect(response.body).toHaveProperty('id');
     expect(response.body.name).toBe(room.name);
     expect(response.body.creator).toEqual(room.creator.toString());
   });
@@ -228,6 +228,35 @@ describe('DELETE /api/rooms/:id', () => {
     expect(response.text).toBe('Operation not allowed');
   });
 });
+
+
+describe('Test resistance to SQL injection attacks', () => {
+  it('should return 400 for room name with SQL injection', async () => {
+    // Malicious input with SQL injection
+    const maliciousInput = { name: { $ne: null }, password: 'testpassword' };
+
+    const response = await api
+      .post('/api/rooms')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ params: maliciousInput });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Validation error', message: '"name" must be a string' });
+  });
+
+  it('should return 400 for room name with SQL injection in join', async () => {
+    // Malicious input with SQL injection
+    const maliciousInput = { name: { $regex: '.*' }, password: 'testpassword' };
+
+    const response = await api
+      .post('/api/rooms/join')
+      .send({ params: maliciousInput });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Validation error', message: '"name" must be a string' });
+  });
+});
+
 
 afterAll(async () => {
   await mongoose.connection.close();
