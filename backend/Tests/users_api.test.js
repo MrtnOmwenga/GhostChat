@@ -269,6 +269,52 @@ describe('DELETE /api/users/:id', () => {
   });
 });
 
+describe('GET /api/users/:id', () => {
+  test('API returns 400 for an invalid ID (potential SQL injection)', async () => {
+    const invalidId = "'; DROP DATABASE;"; // Simulate potential SQL injection attack
+
+    const response = await api
+      .get(`/api/users/${invalidId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({ 'error': 'Validation error', 'message': '"value" failed custom validation because Invalid MongoDB ID.' });
+  });
+});
+
+describe('GET /api/users/search', () => {
+  test('API returns 400 for invalid search criteria (potential SQL injection)', async () => {
+    const invalidUsername = "'; DROP DATABASE;"; // Simulate potential SQL injection attack
+
+    const response = await api
+      .get('/api/users/search')
+      .query({ username: invalidUsername, user: 'John Doe' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({ 'error': 'Validation error', 'message': 'Username contains disallowed characters.' });
+  });
+});
+
+describe('POST /api/users', () => {
+  test('API returns 400 for invalid username (potential SQL injection)', async () => {
+    const invalidUsername = "'; DROP DATABASE;"; // Simulate potential SQL injection attack
+
+    const newUser = {
+      username: invalidUsername,
+      password: 'newpassword',
+    };
+
+    const response = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400);
+
+    expect(response.body).toEqual({ 'error': 'Validation error', 'message': 'Username contains disallowed characters.' });
+  });
+});
+
+
 afterAll(async () => {
   await mongoose.connection.close();
 });
