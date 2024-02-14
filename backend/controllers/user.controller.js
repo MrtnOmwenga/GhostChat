@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const Users = require('../models/user.model.js');
-const { ValidateUser, ValidateMongoId, UserExists, isUsernameUnique } = require('../services/user-validator.service.js');
+const { ValidateUser, ValidateMongoId, UserExists, isUsernameUnique, ValidateSearch } = require('../services/user-validator.service.js');
 require('express-async-errors');
 
 /**
@@ -111,6 +111,15 @@ UserRoutes.get('/search', async (request, response) => {
   // Check that user is validated
   if (!request.token) {
     return response.status(401).send({ 'error': 'Unauthorized' });
+  }
+
+  // Validate ID
+  const validation = ValidateSearch({ username, user });
+  if (validation.error) {
+    // Handle validation error
+    console.log(validation.error.message);
+    console.error('Validation error:', validation.error.details);
+    return response.status(400).json({ error: 'Validation error', message: validation.error.message });
   }
 
   const users = await Users.find({
@@ -243,24 +252,30 @@ UserRoutes.post('/', async (request, response) => {
     return response.status(400).json({ error: 'Validation error', message: error.message });
   }
 
-  // Encrypt password and save user
-  const NewUser = new Users({
-    username,
-    password: await bcrypt.hash(password, 10),
-  });
-  const result = await NewUser.save();
+  // Hash the password using bcrypt
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Create token
-  const token = jwt.sign({
-    name: result.name,
-    id: result._id,
-  }, process.env.SECRET);
+  try {
+    // Create a new user using Mongoose create method with the hashed password
+    const newUser = await Users.create({ username, password: hashedPassword });
+    
+    // Create a JWT token
+    const token = jwt.sign({
+      name: newUser.name,
+      id: newUser._id,
+    }, process.env.SECRET);
 
-  return response.status(201).json({
-    token,
-    username: result.username,
-    id: result._id,
-  });
+    // Return the token, username, and ID in the response
+    return response.status(201).json({
+      token,
+      username: newUser.username,
+      id: newUser._id,
+    });
+  } catch (error) {
+    // Handle any database errors
+    console.error('Database error:', error.message);
+    return response.status(500).json({ error: 'Database error', message: 'Failed to create user' });
+  }
 });
 
 UserRoutes.put('/:id', async (request, response) => {
@@ -292,13 +307,19 @@ UserRoutes.put('/:id', async (request, response) => {
     return response.status(404).json({ error: 'Validation error', message: error.message });
   }
 
-  // Update user data
-  const result = await Users.findByIdAndUpdate(
-    request.params.id,
-    { $set: request.body },
-    { new: true },
-  );
-  return response.status(200).json(result);
+  try {
+    // Update user data using Mongoose findByIdAndUpdate method
+    const result = await Users.findByIdAndUpdate(
+      request.params.id,
+      { $set: request.body },
+      { new: true },
+    );
+    return response.status(200).json(result);
+  } catch (error) {
+    // Handle any database errors
+    console.error('Database error:', error.message);
+    return response.status(500).json({ error: 'Database error', message: 'Failed to update user' });
+  }
 });
 
 UserRoutes.delete('/:id', async (request, response) => {
@@ -322,8 +343,15 @@ UserRoutes.delete('/:id', async (request, response) => {
     return response.status(404).json({ error: 'Validation error', message: error.message });
   }
 
-  await Users.deleteOne({ _id: new ObjectId(request.params.id) });
-  return response.status(204).end();
+  try {
+    // Delete user using Mongoose deleteOne method
+    await Users.deleteOne({ _id: new ObjectId(request.params.id) });
+    return response.status(204).end();
+  } catch (error) {
+    // Handle any database errors
+    console.error('Database error:', error.message);
+    return response.status(500).json({ error: 'Database error', message: 'Failed to delete user' });
+  }
 });
 
 /**

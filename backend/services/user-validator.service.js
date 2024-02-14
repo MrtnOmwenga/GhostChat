@@ -43,11 +43,27 @@ const validateMongoId = (value, helpers) => {
   return value;
 }
 
+// Define custom validation rule to check for suspicious characters
+const noSuspiciousCharacters = (value, helpers) => {
+  if (/[^a-zA-Z0-9-_ ]/.test(value)) {
+    return helpers.error('any.invalid');
+  }
+  return value;
+};
+
 // Username validation requirements
-const usernameSchema = Joi.string().required().min(3).messages({
+const usernameSchema = Joi.string().required().min(3).custom(noSuspiciousCharacters, 'no suspicious characters').messages({
   'any.required': 'Username is required.',
   'string.empty': 'Username cannot be empty.',
   'string.min': 'Username must have at least 3 characters.',
+  'any.invalid': 'Username contains disallowed characters.'
+});
+
+// Search validation
+const searchSchema = Joi.string().required().custom(noSuspiciousCharacters, 'no suspicious characters').messages({
+  'any.required': 'Username is required.',
+  'string.empty': 'Username cannot be empty.',
+  'any.invalid': 'Username contains disallowed characters.'
 });
 
 // Password validation requirements
@@ -85,10 +101,20 @@ const ValidateLogin = (login) => {
   return schema.validate(login);
 }
 
+const ValidateSearch = (search) => {
+  const schema = Joi.object({
+    username: searchSchema,
+    user: usernameSchema,
+  });
+
+  return schema.validate(search);
+}
+
 module.exports = {
   ValidateMongoId,
   ValidateUser,
   ValidateLogin,
   UserExists,
-  isUsernameUnique
+  isUsernameUnique,
+  ValidateSearch,
 }

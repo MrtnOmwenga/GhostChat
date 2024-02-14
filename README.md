@@ -15,7 +15,7 @@ This project is an anonymous chat application built using React, Express, and So
 
 - **Scalability and Performance Optimization**: The application is designed to handle a large number of concurrent users efficiently. I have implemented a WebSocket load balancer to distribute WebSocket connections across multiple backend servers. This ensures that WebSocket connections are evenly distributed and no single server becomes a bottleneck. I am also working on implementing connection pooling, idle connection timeouts, and other optimizations to reduce server resource usage and improve scalability.
   
-- **Security Measures**: Robust security measures are implemented to protect user data and prevent common security vulnerabilities. Measures include input validation, sanitization, encryption of sensitive data, and protection against common attacks like SQL injection, XSS, CSRF, etc. Json web token is used to protect the api endpoints. Joi is used to validate user provided data.
+- **Security Measures**: Robust security measures are implemented to protect user data and prevent common security vulnerabilities. Measures include input validation, sanitization, encryption of sensitive data, and protection against common attacks like SQL injection, XSS, CSRF, etc. Json web token is used to protect the api endpoints, Joi is used to validate user provided data and parametized queries are used to protect deom SQL injection.
 
 - **Error Handling and Logging**: The application handles errors gracefully, providing informative error messages to users. Detailed logs are maintained for debugging and monitoring purposes.
 
