@@ -47,11 +47,20 @@ const validateMongoId = (value, helpers) => {
   return value;
 }
 
+// Define custom validation rule to check for suspicious characters
+const noSuspiciousCharacters = (value, helpers) => {
+  if (/[^a-zA-Z0-9-_ ]/.test(value)) {
+    return helpers.error('any.invalid');
+  }
+  return value;
+};
+
 // Room validation contraints
-const roomSchema = Joi.string().required().min(3).messages({
+const roomSchema = Joi.string().required().min(3).custom(noSuspiciousCharacters, 'no suspicious characters').messages({
   'any.required': 'Room name is required.',
   'string.empty': 'Room name cannot be empty.',
   'string.min': 'Room name must have at least 3 characters.',
+  'any.invalid': 'Room name contains disallowed characters.',
 });
 
 // Password validation constraints
