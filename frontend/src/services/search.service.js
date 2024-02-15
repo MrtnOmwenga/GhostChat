@@ -1,9 +1,15 @@
 import axios from 'axios';
 import token from './token.service';
 
+const Auth = token.getToken();
+
 const Search = async (username, user) => {
   const config = {
-    headers: { Authorization: `Bearer ${token.getToken()}` },
+    headers: { 
+      Authorization: `Bearer ${Auth.token}`,
+      'Cookie': Auth.csrfCookie,
+      'x-csrf-token': Auth.csrfToken 
+    },
     params: { username, user },
   };
 

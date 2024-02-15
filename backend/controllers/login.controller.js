@@ -1,8 +1,11 @@
 const LoginRoutes = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const csrf = require('csurf');
 const Users = require('../models/user.model');
 const { ValidateLogin } = require('../services/user-validator.service');
+
+const csrfProtection = csrf({ cookie: true });
 
 /**
  * @swagger
@@ -72,15 +75,15 @@ const { ValidateLogin } = require('../services/user-validator.service');
  *                 type: string
  *                 description: Error message
  */
-LoginRoutes.post('/', async (request, response) => {
+LoginRoutes.post('/', csrfProtection, async (request, response) => {
   const { username, password } = request.body;
 
   // Validate request body
-  const validation = ValidateLogin({ username, password});
+  const validation = ValidateLogin({ username, password });
   if (validation.error) {
     // Handle validation error
     console.error('Validation error:', validation.error.details);
-    return response.status(400).json({ error: 'Validation error', message: error.message });
+    return response.status(400).json({ error: 'Validation error', message: validation.error.message });
   }
 
   // Get correct password and compare
@@ -102,7 +105,7 @@ LoginRoutes.post('/', async (request, response) => {
     .json({
       token,
       username: user.username,
-      id: user._id,
+      id: user.id,
     });
 });
 
