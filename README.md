@@ -47,7 +47,7 @@ This project is an anonymous chat application built using React, Express, and So
 
    ```bash
    git clone https://github.com/your-username/anonymous-chat.git
-
+   ```
 
 ## Getting Started
 
