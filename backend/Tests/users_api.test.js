@@ -7,19 +7,34 @@ const app = require('../App.js');
 const api = supertest(app);
 
 let token; // To store the token globally
+let csrfToken; // To store the CSRF token globally
+let csrfCookie; // To store the CSRF cookie globally
 
 beforeAll(async () => {
+  // Get CSRF token
+  const csrfResponse = await api.get('/services/csrf');
+  csrfToken = csrfResponse.body.csrfToken;
+  csrfCookie = csrfResponse.headers['set-cookie'];
+  
   // Make a request to /services/login to get the token
   const loginResponse = await api
     .post('/services/login')
     .send({
       username: 'Kevin Cozner',
       password: 'foobar',
-    });
+    })
+    .set('Cookie', csrfCookie)
+    .set('x-csrf-token', csrfToken);
 
   // Extract the token from the response
   token = loginResponse.body.token;
+
+  console.log(token);
+  console.log(csrfToken);
+  console.log(csrfCookie);
 }, 100000);
+
+
 
 beforeEach(async () => {
   await Users.deleteMany({});
@@ -43,6 +58,8 @@ describe('GET /api/users', () => {
     const response = await api
       .get('/api/users')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(200)
       .expect('Content-Type', /application\/json/);
 
@@ -65,6 +82,8 @@ describe('GET /api/users/search', () => {
       .get('/api/users/search')
       .query({ username: 'K', user: 'John Doe' })
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(200)
       .expect('Content-Type', /application\/json/);
 
@@ -90,6 +109,8 @@ describe('GET /api/users/:id', () => {
     const response = await api
       .get(`/api/users/${UserToCheck._id}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(200);
 
     expect(response.body.username).toContain(UserToCheck.username);
@@ -99,6 +120,8 @@ describe('GET /api/users/:id', () => {
     const response = await api
       .get('/api/users/invalidId')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400)
 
     expect(response.body).toEqual({ 'error': 'Validation error', 'message': '"value" failed custom validation because Invalid MongoDB ID.' });
@@ -109,6 +132,8 @@ describe('GET /api/users/:id', () => {
     const response = await api
       .get(`/api/users/${nonExistingId}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(404)
       .expect('Content-Type', /application\/json/);
 
@@ -126,6 +151,8 @@ describe('POST /api/users', () => {
     const response = await api
       .post('/api/users')
       .send(newUser)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(201)
       .expect('Content-Type', /application\/json/);
 
@@ -142,6 +169,8 @@ describe('POST /api/users', () => {
     const response = await api
       .post('/api/users')
       .send(invalidUser)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400)
 
     expect(response.body).toEqual({ 'error': 'Validation error', 'message': 'Username must have at least 3 characters.' });
@@ -156,6 +185,8 @@ describe('POST /api/users', () => {
     const response = await api
       .post('/api/users')
       .send(duplicateUser)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400)
       .expect('Content-Type', /application\/json/);
 
@@ -177,8 +208,10 @@ describe('PUT /api/users/:id', () => {
       .put(`/api/users/${userToUpdate._id}`)
       .send(updatedUserData)
       .set('Authorization', `Bearer ${token}`)
-      // .expect(200)
-      // .expect('Content-Type', /application\/json/);
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
+      .expect(200)
+      .expect('Content-Type', /application\/json/);
 
     expect(response.body.username).toBe(updatedUserData.username);
   });
@@ -196,6 +229,8 @@ describe('PUT /api/users/:id', () => {
       .put(`/api/users/${userToUpdate._id}`)
       .send(invalidUserData)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400)
       .expect('Content-Type', /application\/json/);
 
@@ -214,6 +249,8 @@ describe('PUT /api/users/:id', () => {
     const response = await api
       .put(`/api/users/${userToUpdate._id}`)
       .send(updatedUserData)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(401)
       .expect('Content-Type', /application\/json/);
 
@@ -229,6 +266,8 @@ describe('DELETE /api/users/:id', () => {
     await api
       .delete(`/api/users/${userToDelete._id}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(204);
 
     const userInDBAfterDelete = await Users.findById(userToDelete._id);
@@ -242,6 +281,8 @@ describe('DELETE /api/users/:id', () => {
     const response = await api
       .delete(`/api/users/${userToDelete._id}`)
       .expect(401)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect('Content-Type', /application\/json/);
 
     expect(response.body.error).toBe('Unauthorized');
@@ -251,6 +292,8 @@ describe('DELETE /api/users/:id', () => {
     const response = await api
       .delete('/api/users/invalidId')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400)
       .expect('Content-Type', /application\/json/);
 
@@ -262,6 +305,8 @@ describe('DELETE /api/users/:id', () => {
     const response = await api
       .delete(`/api/users/${nonExistingId}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(404)
       .expect('Content-Type', /application\/json/);
 
@@ -276,6 +321,8 @@ describe('GET /api/users/:id', () => {
     const response = await api
       .get(`/api/users/${invalidId}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400);
 
     expect(response.body).toEqual({ 'error': 'Validation error', 'message': '"value" failed custom validation because Invalid MongoDB ID.' });
@@ -290,6 +337,8 @@ describe('GET /api/users/search', () => {
       .get('/api/users/search')
       .query({ username: invalidUsername, user: 'John Doe' })
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(400);
 
     expect(response.body).toEqual({ 'error': 'Validation error', 'message': 'Username contains disallowed characters.' });
@@ -307,6 +356,8 @@ describe('POST /api/users', () => {
 
     const response = await api
       .post('/api/users')
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .send(newUser)
       .expect(400);
 
