@@ -33,22 +33,6 @@ This project is an anonymous chat application built using React, Express, and So
 
 - **Deployment and CI/CD**: The application is deployed using CI/CD pipelines, with automated testing and deployment processes. Puppet is used to automate this process.
 
-### Getting Started
-
-#### Prerequisites
-
-- Node.js
-- MongoDB
-- Redis
-
-#### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/your-username/anonymous-chat.git
-   ```
-
 ## Getting Started
 
 ### Prerequisites
