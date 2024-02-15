@@ -2,9 +2,12 @@ const UserRoutes = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
+const csrf = require('csurf');
 const Users = require('../models/user.model.js');
 const { ValidateUser, ValidateMongoId, UserExists, isUsernameUnique, ValidateSearch } = require('../services/user-validator.service.js');
 require('express-async-errors');
+
+const csrfProtection = csrf({ cookie: true });
 
 /**
  * @swagger
@@ -234,7 +237,7 @@ UserRoutes.get('/:id', async (request, response) => {
   return response.json(users);
 });
 
-UserRoutes.post('/', async (request, response) => {
+UserRoutes.post('/', csrfProtection, async (request, response) => {
   const { username, password } = request.body;
 
   // Validate request body
@@ -278,7 +281,7 @@ UserRoutes.post('/', async (request, response) => {
   }
 });
 
-UserRoutes.put('/:id', async (request, response) => {
+UserRoutes.put('/:id', csrfProtection, async (request, response) => {
   // Check that user is validated
   if (!request.token) {
     return response.status(401).send({ 'error': 'Unauthorized' });
@@ -322,7 +325,7 @@ UserRoutes.put('/:id', async (request, response) => {
   }
 });
 
-UserRoutes.delete('/:id', async (request, response) => {
+UserRoutes.delete('/:id', csrfProtection, async (request, response) => {
   const auth = request.token;
   if (!auth) {
     return response.status(401).send({ 'error': 'Unauthorized' });

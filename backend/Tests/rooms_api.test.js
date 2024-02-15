@@ -8,6 +8,8 @@ const app = require('../App.js');
 const api = supertest(app);
 
 let token; // To store the token globally
+let csrfToken; // To store the CSRF token globally
+let csrfCookie; // To store the CSRF cookie globally
 let auth;
 const validRoomData = {
   name: 'TestRoom',
@@ -15,13 +17,20 @@ const validRoomData = {
 };
 
 beforeAll(async () => {
+  // Get CSRF token
+  const csrfResponse = await api.get('/services/csrf');
+  csrfToken = csrfResponse.body.csrfToken;
+  csrfCookie = csrfResponse.headers['set-cookie'];
+
   // Make a request to /services/login to get the token
   const loginResponse = await api
     .post('/services/login')
     .send({
       username: 'Kevin Cozner',
       password: 'foobar',
-    });
+    })
+    .set('Cookie', csrfCookie)
+    .set('x-csrf-token', csrfToken);
 
   // Extract the token from the response
   token = loginResponse.body.token;
@@ -49,6 +58,8 @@ describe('Test get url', () => {
     const response = await api
       .get('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(200)
       .expect('Content-Type', /application\/json/);
 
@@ -66,6 +77,8 @@ describe('Test get url', () => {
     const response = await api
       .get(`/api/rooms/${room._id}`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .expect(200);
 
     expect(response.body.name).toContain(room.name);
@@ -81,6 +94,8 @@ describe('Test get url', () => {
 
     const response = await api
       .get(`/api/rooms/${room._id}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
 
     expect(response.status).toBe(400);
     expect(response.text).toBe('Invalid Token');
@@ -92,6 +107,8 @@ describe('POST /api/rooms', () => {
     const response = await api
       .post('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .send({ params: validRoomData });
 
     expect(response.status).toBe(201);
@@ -104,6 +121,8 @@ describe('POST /api/rooms', () => {
     const response = await api
       .post('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .send({ params: validRoomData });
 
     expect(response.status).toBe(400);
@@ -111,7 +130,10 @@ describe('POST /api/rooms', () => {
   });
 
   it('should return 400 for invalid token', async () => {
-    const response = await api.post('/api/rooms').send({ params: validRoomData });
+    const response = await api.post('/api/rooms')
+      .send({ params: validRoomData })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.text).toBe('Invalid Token');
@@ -121,6 +143,8 @@ describe('POST /api/rooms', () => {
     const response = await api
       .post('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken)
       .send({ params: { name: validRoomData.name } });
 
     expect(response.status).toBe(400);
@@ -139,7 +163,9 @@ describe('POST /api/rooms/join', () => {
 
     const response = await api
       .post('/api/rooms/join')
-      .send({ params: { name: 'ExistingRoom', password: validRoomData.password } });
+      .send({ params: { name: 'ExistingRoom', password: validRoomData.password } })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('id');
@@ -151,7 +177,9 @@ describe('POST /api/rooms/join', () => {
 
     const response = await api
       .post('/api/rooms/join')
-      .send({ params: { name: validRoomData.name } });
+      .send({ params: { name: validRoomData.name } })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'Validation error', message: 'Password is required.' });
@@ -160,7 +188,9 @@ describe('POST /api/rooms/join', () => {
   it('should return 400 for room not found', async () => {
     const response = await api
       .post('/api/rooms/join')
-      .send({ params: { name: 'NonExistentRoom', password: 'foobar' } });
+      .send({ params: { name: 'NonExistentRoom', password: 'foobar' } })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.text).toBe('Room not found');
@@ -172,7 +202,9 @@ describe('POST /api/rooms/join', () => {
 
     const response = await api
       .post('/api/rooms/join')
-      .send({ params: { name: RoomToJoin.name, password: 'incorrect-password' } });
+      .send({ params: { name: RoomToJoin.name, password: 'incorrect-password' } })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(401);
     expect(response.text).toBe('Incorrect username or password');
@@ -190,14 +222,19 @@ describe('DELETE /api/rooms/:id', () => {
 
     const response = await api
       .delete(`/api/rooms/${room._id}`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(204);
     expect(await Rooms.findById(room._id)).toBeNull();
   });
 
   it('should return 400 for invalid token', async () => {
-    const response = await api.delete(`/api/rooms/${auth}`);
+    const response = await api
+      .delete(`/api/rooms/${auth}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.text).toBe('Invalid Token');
@@ -206,7 +243,9 @@ describe('DELETE /api/rooms/:id', () => {
   it('should return 400 for validation error', async () => {
     const response = await api
       .delete('/api/rooms/invalid-id')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ 'error': 'Validation error', message: '"value" failed custom validation because Invalid MongoDB ID.'});
@@ -222,7 +261,9 @@ describe('DELETE /api/rooms/:id', () => {
 
     const response = await api
       .delete(`/api/rooms/${room._id}`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(405);
     expect(response.text).toBe('Operation not allowed');
@@ -238,7 +279,9 @@ describe('Test resistance to SQL injection attacks', () => {
     const response = await api
       .post('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
-      .send({ params: maliciousInput });
+      .send({ params: maliciousInput })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'Validation error', message: '"name" must be a string' });
@@ -250,7 +293,9 @@ describe('Test resistance to SQL injection attacks', () => {
 
     const response = await api
       .post('/api/rooms/join')
-      .send({ params: maliciousInput });
+      .send({ params: maliciousInput })
+      .set('Cookie', csrfCookie)
+      .set('x-csrf-token', csrfToken);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'Validation error', message: '"name" must be a string' });

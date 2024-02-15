@@ -1,9 +1,11 @@
 const RoomsRoutes = require('express').Router();
 const bcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
+const csrf = require('csurf');
 const Rooms = require('../models/room.model');
 const { ValidateRoom,  ValidateJoin, ValidateMongoId, isRoomNameUnique } = require('../services/room-validator.service.js');
 
+const csrfProtection = csrf({ cookie: true });
 
 /**
  * @swagger
@@ -66,7 +68,7 @@ RoomsRoutes.get('/', async (request, response) => {
   return response.json(rooms);
 });
 
-RoomsRoutes.post('/', async (request, response) => {
+RoomsRoutes.post('/', csrfProtection, async (request, response) => {
   const { name, password } = request.body.params;
 
   // Check that user is validated
@@ -173,7 +175,7 @@ RoomsRoutes.get('/:id', async (request, response) => {
   }
 });
 
-RoomsRoutes.delete('/:id', async (request, response) => {
+RoomsRoutes.delete('/:id', csrfProtection, async (request, response) => {
   // Check that user is validated
   if (!request.token) {
     return response.status(400).send('Invalid Token');
@@ -230,7 +232,7 @@ RoomsRoutes.delete('/:id', async (request, response) => {
  *       '401':
  *         description: Incorrect username or password
  */
-RoomsRoutes.post('/join', async (request, response) => {
+RoomsRoutes.post('/join', csrfProtection, async (request, response) => {
   const { name, password } = request.body.params;
 
   // Validate request body
