@@ -25,6 +25,8 @@ This project is an anonymous chat application built using React, Express, and So
 
   - **Secure Session Management**: Express session middleware is configured with secure options, including setting the `sameSite` attribute to `'lax'` or `'strict'`, which helps prevent CSRF and other attacks related to session management.
 
+   - **Rate Limiting**: A rate limiter middleware is implemented to prevent abuse or DoS attacks by limiting the number of requests from a single IP address within a specified time window.
+
   - **Content Security Policy (CSP)**: Helmet's contentSecurityPolicy middleware is used to implement a Content Security Policy, which helps mitigate the risk of XSS attacks by allowing the application to specify which sources of content are trusted.
 
 - **Error Handling and Logging**: The application handles errors gracefully, providing informative error messages to users. Detailed logs are maintained for debugging and monitoring purposes.
