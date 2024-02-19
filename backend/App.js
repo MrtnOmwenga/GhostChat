@@ -13,6 +13,7 @@ const UserRoutes = require('./controllers/user.controller');
 const LoginRoutes = require('./controllers/login.controller');
 const RoomsRoutes = require('./controllers/room.controller');
 const middlewares = require('./utils/middlewares.utils');
+const limiter = require('./utils/middlewares.utils');
 const log = require('./utils/logger.utils');
 const config = require('./utils/config.utils');
 const options = require('./utils/options.utils');
@@ -60,6 +61,7 @@ app.use(session({
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cookieParser());
 app.use(csurf({ cookie: true }));
+app.use(limiter);
 
 // CSRF token endpoint
 app.get('/services/csrf', function (req, res) {
