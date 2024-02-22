@@ -1,4 +1,4 @@
-## Anonymous Chat Application
+## GhostChat Application
 
 ### Overview
 
@@ -101,7 +101,7 @@ A Puppet configuration file has been provided to automate the deployment and con
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/anonymous-chat.git
+   git clone https://github.com/MrtnOmwenga/GhostChat.git
    ```
 
 2. Install dependencies:
