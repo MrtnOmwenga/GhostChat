@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import panel from '../../ui/Panel.module.css';
 import api from '../../lib/api';
 import { signOut } from './ChatPage';
+import { accountDeletion } from '../../lib/messaging';
 
 const MainMenu = ({ ChangeView, close }) => {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ const MainMenu = ({ ChangeView, close }) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm('Delete your account? This cannot be undone.')) return;
     try {
-      await api.delete('/users/me');
+      await api.delete('/users/me', { data: { deletion: await accountDeletion() } });
       await signOut(dispatch, navigate);
     } catch (error) {
       toast.error(error.message);

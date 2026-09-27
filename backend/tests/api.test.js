@@ -1,7 +1,7 @@
 const request = require('supertest');
 const crypto = require('crypto');
 const {
-  startServer, signUp, makeAccount, randomB64,
+  startServer, signUp, makeAccount, randomB64, signedDeletion,
 } = require('./helpers');
 
 let server;
@@ -132,12 +132,16 @@ describe('users', () => {
     await agent.get('/api/users/0123456789abcdef01234567/keys').expect(404);
   });
 
-  test('users can only delete themselves, and deletion removes the account', async () => {
-    const { agent, account } = await signUp(server.app, 'ada');
-    const { user: grace } = await signUp(server.app, 'grace');
-    await agent.delete(`/api/users/${grace.id}`).expect(404);
-    await agent.delete('/api/users/me').expect(204);
-    await request(server.app).post('/api/auth/login').send({ username: 'ada', authKey: account.body.authKey }).expect(401);
+  test('deleting an account needs its signed deletion; the account goes, the key history stays', async () => {
+    const ada = await signUp(server.app, 'ada');
+    const grace = await signUp(server.app, 'grace');
+    await ada.agent.delete(`/api/users/${grace.user.id}`).expect(404);
+    await ada.agent.delete('/api/users/me').send({}).expect(400);
+    await ada.agent.delete('/api/users/me').send({ deletion: signedDeletion(grace, { type: 'account-deleted' }) }).expect(400);
+    await ada.agent.delete('/api/users/me').send({ deletion: signedDeletion(ada, { type: 'account-deleted' }) }).expect(204);
+    await request(server.app).post('/api/auth/login').send({ username: 'ada', authKey: ada.account.body.authKey }).expect(401);
+    // Public keys remain so others can still verify ada's old signatures.
+    expect((await grace.agent.get(`/api/users/${ada.user.id}/keys`).expect(200)).body).toEqual([ada.account.entry]);
   });
 });
 

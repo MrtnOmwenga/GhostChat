@@ -21,6 +21,11 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     ...(adapter ? { adapter } : {}),
   });
 
+  const broadcastEnvelope = (who, envelope) => {
+    const channels = who.kind === 'dm' ? who.users.map(userChannel) : [roomChannel(who.room.id)];
+    io.to(channels).emit('message', envelope);
+  };
+
   io.use((socket, next) => {
     const user = userFromCookieHeader(socket.handshake.headers.cookie);
     if (!user) return next(new Error('unauthorized'));
@@ -51,8 +56,7 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
       try {
         const result = await appendEnvelope(envelope, user.id);
         if (result.status !== 'ok') return reply(result);
-        const channels = result.access.kind === 'dm' ? result.access.users.map(userChannel) : [roomChannel(result.access.room.id)];
-        io.to(channels).emit('message', result.envelope);
+        broadcastEnvelope(result.access, result.envelope);
         return reply({ status: 'ok', envelope: result.envelope });
       } catch (err) {
         console.error(err);
@@ -77,6 +81,7 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
 
   return {
     io,
+    broadcastEnvelope,
     // Called by the REST routes after a user creates or joins a room, so their open sockets start
     // receiving its messages without reconnecting.
     subscribeUserToRoom(userId, roomId) {

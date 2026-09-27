@@ -9,7 +9,7 @@ import { currentKeys } from './keystore';
 import { emitWithAck } from './socket';
 import {
   sodium as loadSodium, verifyHistory, dmConversation, genesisHash, encryptPayload, decryptPayload,
-  sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8,
+  sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
 } from './crypto';
 import {
   contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened,
@@ -88,11 +88,19 @@ async function toRecord(sodium, env, previous) {
     createdAt: env.createdAt,
     envelope: env,
   };
-  if (env.deleted) {
-    return { ...base, kind: 'deleted', deleted: env.deleted, verification: { signature: null, link, problems: [] } };
+  if (!names.has(env.sender)) {
+    // Someone no longer in any shared room, or a deleted account: the key history still names them.
+    const history = await keysOf(env.sender).catch(() => null);
+    const name = history?.entries?.[0]?.username;
+    if (name) {
+      names.set(env.sender, name);
+      base.senderName = name;
+    }
   }
+  if (env.deleted) return { ...base, kind: 'deleted', deleted: env.deleted, verification: await verifyDeletion(sodium, env, link) };
 
-  const problems = [];
+  // A broken link is listed first: it says where in the chain things went wrong.
+  const problems = link === false ? ['does not link to the previous message'] : [];
   let signature = false;
   try {
     const history = await keysOf(env.sender, { minVersion: env.senderKeyVersion });
@@ -105,8 +113,6 @@ async function toRecord(sodium, env, previous) {
   } catch {
     problems.push("the sender's keys are unavailable");
   }
-  if (link === false) problems.push('does not link to the previous message');
-
   try {
     const payload = decryptPayload(sodium, await payloadKey(sodium, env), env);
     const verification = { signature, link, problems };
@@ -118,6 +124,28 @@ async function toRecord(sodium, env, previous) {
   } catch (error) {
     return { ...base, kind: 'unreadable', previewText: 'Message could not be decrypted', verification: { signature, link, problems: [...problems, error.message] } };
   }
+}
+
+/**
+ * A tombstone is only as good as its deletion signature: it must be signed by the message's
+ * author and name this exact message (or the whole account).
+ */
+async function verifyDeletion(sodium, env, link) {
+  const d = env.deleted;
+  const problems = [];
+  let signature = false;
+  try {
+    const history = await keysOf(env.sender, { minVersion: d.keyVersion });
+    const names = d.type === 'account-deleted' || (d.conversation === env.conversation && d.seq === env.seq && d.hash === env.hash);
+    if (d.user !== env.sender) problems.push('deleted by someone other than the author');
+    if (!names) problems.push('the deletion names a different message');
+    if (!verifyObject(sodium, d, history.entries[d.keyVersion - 1]?.signingKey)) problems.push('deletion signature does not match');
+    signature = problems.length === 0;
+  } catch {
+    problems.push("the author's keys are unavailable");
+  }
+  if (link === false) problems.push('does not link to the previous message');
+  return { signature, link, problems, deletion: true };
 }
 
 /** Verifies, decrypts and stores envelopes of one conversation, in chain order. */
@@ -138,6 +166,13 @@ export async function processEnvelopes(conversation, envelopes, { live = false }
 
 export async function loadHistory(conversation) {
   const { data } = await api.get('/messages', { params: { conversation } });
+  loaded.add(conversation);
+  await processEnvelopes(conversation, data);
+}
+
+/** Loads the whole chain (up to 2000 messages) so every link back to the first can be checked. */
+export async function loadFullChain(conversation) {
+  const { data } = await api.get('/messages', { params: { conversation, after: 0, limit: 2000 } });
   loaded.add(conversation);
   await processEnvelopes(conversation, data);
 }
@@ -239,6 +274,28 @@ export async function sendText(conversation, text) {
 }
 
 const sendEvent = (conversation, event) => sendPayload(conversation, { type: 'event', event }).catch(() => {});
+
+async function signDeletion(fields) {
+  const sodium = await loadSodium();
+  const body = {
+    user: me.id, at: new Date().toISOString(), keyVersion: myVersion(), ...fields,
+  };
+  return signObject(sodium, body, fromB64(sodium, myKeys().signing.privateKey));
+}
+
+/** Deletes one of my messages: a signed statement; the server erases the content. */
+export async function deleteMessage(conversation, seq) {
+  const record = (store.getState().chat.messages[conversation] || []).find((r) => r.seq === seq);
+  if (!record || record.sender !== me.id) throw new Error('You can only delete your own messages');
+  const deletion = await signDeletion({
+    type: 'delete', conversation, seq, hash: record.hash,
+  });
+  const { data } = await api.post('/messages/delete', { deletion });
+  await processEnvelopes(conversation, [data]);
+}
+
+/** The signed request that deletes the account and tombstones every message it sent. */
+export const accountDeletion = () => signDeletion({ type: 'account-deleted' });
 
 export async function openConversation(conversation) {
   store.dispatch(conversationOpened(conversation));
