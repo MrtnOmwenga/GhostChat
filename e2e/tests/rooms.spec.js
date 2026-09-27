@@ -1,33 +1,86 @@
 const { test, expect } = require('./fixtures');
-const { twoUsers, uniqueName, send, conversation } = require('./helpers');
+const {
+  twoUsers, uniqueName, send, conversation, signUp,
+} = require('./helpers');
 
-async function roomForm(page, action, name, password, { confirm = true } = {}) {
+async function createRoom(page, name) {
   await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByRole('button', { name: action }).click();
+  await page.getByRole('button', { name: 'Create a room' }).click();
   await page.getByLabel('Room name').fill(name);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  if (confirm) await page.getByLabel('Confirm password').fill(password);
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(conversation(page)).toHaveAccessibleName(`Conversation with ${name}`);
 }
 
-test('create a room, join it with the password, and talk in it', async ({ browser }) => {
+async function inviteLink(page) {
+  await page.getByRole('button', { name: 'Invite people' }).click();
+  await page.getByRole('button', { name: 'Create link' }).click();
+  const link = await page.getByLabel('Invite link').inputValue();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+  return link;
+}
+
+async function joinWithLink(page, link) {
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('button', { name: 'Join with an invite link' }).click();
+  await page.getByLabel('Invite link').fill(link);
+  await page.getByRole('button', { name: 'Join', exact: true }).click();
+}
+
+const fingerprint = (page) => conversation(page).getByLabel('Room key fingerprint');
+
+test('invite link: the secret stays in the fragment; the joiner sees the whole history', async ({ browser }) => {
   const [ada, grace] = await twoUsers(browser);
   const room = uniqueName('Room');
+  await createRoom(ada.page, room);
+  await send(ada.page, 'Written before Grace joined');
+  const link = await inviteLink(ada.page);
+  expect(link).toMatch(/\/join\/[0-9a-f]{24}#[A-Za-z0-9_-]{43}$/);
 
-  await roomForm(ada.page, 'Create a room', room, 'difference engine');
-  await ada.page.getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(conversation(ada.page)).toHaveAccessibleName(`Conversation with ${room}`);
+  const requests = [];
+  grace.page.on('request', (r) => requests.push(r.url() + (r.postData() || '')));
+  await joinWithLink(grace.page, link);
+  const secret = link.split('#')[1];
+  expect(requests.join('\n')).not.toContain(secret);
 
-  await roomForm(grace.page, 'Join a room', room, 'not the password', { confirm: false });
-  await grace.page.getByRole('button', { name: 'Join', exact: true }).click();
-  await expect(grace.page.getByText('Incorrect room name or password')).toBeVisible();
-
-  await grace.page.getByLabel('Password', { exact: true }).fill('difference engine');
-  await grace.page.getByRole('button', { name: 'Join', exact: true }).click();
+  await expect(conversation(grace.page).getByText('Written before Grace joined')).toBeVisible();
   await expect(conversation(ada.page).getByText(`${grace.name} joined the room`)).toBeVisible();
+  await expect(fingerprint(grace.page)).toHaveText(await fingerprint(ada.page).textContent());
 
   await send(grace.page, 'Hello, room');
   const received = conversation(ada.page).getByRole('listitem').filter({ hasText: 'Hello, room' });
-  await expect(received).toContainText(grace.name); // room messages name their sender
+  await expect(received).toContainText(grace.name);
+});
+
+test('opening an invite link while signed out joins after signing up', async ({ browser }) => {
+  const [ada] = await twoUsers(browser);
+  const room = uniqueName('Room');
+  await createRoom(ada.page, room);
+  const link = await inviteLink(ada.page);
+
+  const page = await (await browser.newContext()).newPage();
+  await page.goto(link.replace(/^https?:\/\/[^/]+/, ''));
+  await expect(page).toHaveURL(/\/login-register$/);
+  await signUp(page, uniqueName('grace'));
+  await expect(conversation(page)).toHaveAccessibleName(`Conversation with ${room}`);
+});
+
+test('when someone leaves, the key is replaced before anyone can send again', async ({ browser }) => {
+  const [ada, grace] = await twoUsers(browser);
+  const room = uniqueName('Room');
+  await createRoom(ada.page, room);
+  await joinWithLink(grace.page, await inviteLink(ada.page));
+  await expect(conversation(ada.page).getByText(`${grace.name} joined the room`)).toBeVisible();
+  const before = await fingerprint(ada.page).textContent();
+
+  grace.page.once('dialog', (dialog) => dialog.accept());
+  await grace.page.getByRole('button', { name: 'Leave room' }).click();
+  await expect(grace.page.getByRole('button', { name: new RegExp(room) })).toHaveCount(0);
+  await expect(conversation(ada.page).getByText(`${grace.name} left the room`)).toBeVisible();
+
+  await send(ada.page, 'After Grace left');
+  await expect(conversation(ada.page).getByText('After Grace left')).toBeVisible();
+  await expect(conversation(ada.page).getByText(`${ada.name} replaced the room key`)).toBeVisible();
+  await expect(fingerprint(ada.page)).not.toHaveText(before);
 });
 
 test('the menu closes with Escape', async ({ browser }) => {

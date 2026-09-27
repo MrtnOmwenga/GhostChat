@@ -1,28 +1,22 @@
 const mongoose = require('mongoose');
 
-// A message goes either to one user (`to`) or to a room (`room`), never both.
+/**
+ * A signed, encrypted message envelope, stored exactly as the client signed it (docs/DESIGN.md
+ * §6.1). The server can't read `ciphertext`; it checks the signature, the hash and that `prev`
+ * links to the conversation's previous message before storing. A deleted message keeps `seq`,
+ * `prev`, `hash` and `signature` so the chain still verifies; its content is erased.
+ */
 const messageSchema = new mongoose.Schema({
-  from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  // Copied at send time so history renders without a join, and still shows a name after the
-  // sender deletes their account.
-  fromUsername: { type: String, required: true },
-  to: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
-  text: { type: String, required: true },
-}, { timestamps: { createdAt: true, updatedAt: false } });
-
-messageSchema.index({ from: 1, to: 1, createdAt: -1 });
-messageSchema.index({ room: 1, createdAt: -1 });
-
-messageSchema.set('toJSON', {
-  transform: (doc, ret) => ({
-    id: ret._id.toString(),
-    from: { id: ret.from.toString(), username: ret.fromUsername },
-    to: ret.to ? ret.to.toString() : undefined,
-    room: ret.room ? ret.room.toString() : undefined,
-    text: ret.text,
-    createdAt: ret.createdAt,
-  }),
+  conversation: { type: String, required: true },
+  seq: { type: Number, required: true },
+  envelope: { type: mongoose.Schema.Types.Mixed, required: true },
+  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  receivedAt: { type: Date, default: Date.now },
 });
+
+messageSchema.index({ conversation: 1, seq: 1 }, { unique: true });
+messageSchema.index({ sender: 1 });
+
+messageSchema.set('toJSON', { transform: (doc, ret) => ret.envelope });
 
 module.exports = mongoose.model('Message', messageSchema);

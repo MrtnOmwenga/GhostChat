@@ -82,6 +82,38 @@ async function signUp(app, username) {
   return { agent, user: res.body, cookie, account };
 }
 
+const { genesisHash } = require('../src/services/chain');
+
+const dmOf = (a, b) => `dm:${[a, b].sort().join(':')}`;
+
+/**
+ * A signed envelope as a client would send it. The server never decrypts, so random bytes stand
+ * in for the ciphertext and sealed keys; everything the server does check is real.
+ */
+function envelope(from, {
+  conversation, seq = 1, prev, recipients = [], epoch, signWith = from.account.signing.privateKey, overrides = {},
+}) {
+  const body = {
+    v: 1,
+    conversation,
+    seq,
+    prev: prev || genesisHash(conversation),
+    sender: from.user.id,
+    senderKeyVersion: 1,
+    ...(epoch ? { epoch } : {}),
+    nonce: randomB64(24),
+    ciphertext: randomB64(60),
+    ...(recipients.length ? { keys: Object.fromEntries(recipients.map((id) => [id, { keyVersion: 1, sealed: randomB64(80) }])) } : {}),
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+  body.hash = objectHash(body);
+  body.signature = b64(crypto.sign(null, Buffer.from(body.hash), signWith));
+  return body;
+}
+
+const sealedKey = () => ({ keyVersion: 1, sealed: randomB64(80) });
+
 function connectSocket(url, cookie) {
   return new Promise((resolve, reject) => {
     const socket = connect(url, { extraHeaders: cookie ? { cookie } : {}, reconnection: false, forceNew: true });
@@ -94,5 +126,5 @@ const nextEvent = (socket, event) => new Promise((resolve) => { socket.once(even
 const emitAck = (socket, event, payload) => new Promise((resolve) => { socket.emit(event, payload, resolve); });
 
 module.exports = {
-  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck,
+  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey,
 };

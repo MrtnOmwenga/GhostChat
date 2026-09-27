@@ -141,61 +141,6 @@ describe('users', () => {
   });
 });
 
-describe('rooms', () => {
-  test('create, join with the password, list mine', async () => {
-    const { agent: ada } = await signUp(server.app, 'ada');
-    const { agent: grace } = await signUp(server.app, 'grace');
-    const room = await ada.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
-    noPasswordFields(room.body);
-
-    await grace.post('/api/rooms/join').send({ name: 'Engine', password: 'wrong one!' }).expect(401);
-    await grace.post('/api/rooms/join').send({ name: 'Engine', password: 'difference' }).expect(200);
-    const mine = await grace.get('/api/rooms/mine').expect(200);
-    expect(mine.body.map((r) => r.name)).toEqual(['Engine']);
-    noPasswordFields(mine.body);
-  });
-
-  test('joining requires a session and room names are unique', async () => {
-    const { agent } = await signUp(server.app, 'ada');
-    await agent.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
-    await agent.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(409);
-    await request(server.app).post('/api/rooms/join').send({ name: 'Engine', password: 'difference' }).expect(401);
-  });
-
-  test("a deleted creator's room passes to the next member", async () => {
-    const { agent: ada } = await signUp(server.app, 'ada');
-    const { agent: grace } = await signUp(server.app, 'grace');
-    const room = await ada.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
-    await grace.post('/api/rooms/join').send({ name: 'Engine', password: 'difference' });
-    await ada.delete('/api/users/me').expect(204);
-    await grace.delete(`/api/rooms/${room.body.id}`).expect(204);
-  });
-
-  test('only the creator can delete a room', async () => {
-    const { agent: ada } = await signUp(server.app, 'ada');
-    const { agent: grace } = await signUp(server.app, 'grace');
-    const room = await ada.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
-    await grace.post('/api/rooms/join').send({ name: 'Engine', password: 'difference' });
-    await grace.delete(`/api/rooms/${room.body.id}`).expect(403);
-    await ada.delete(`/api/rooms/${room.body.id}`).expect(204);
-  });
-});
-
-describe('message history', () => {
-  test('room history is only readable by members', async () => {
-    const { agent: ada } = await signUp(server.app, 'ada');
-    const { agent: eve } = await signUp(server.app, 'eve');
-    const room = await ada.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
-    await ada.get(`/api/messages?room=${room.body.id}`).expect(200);
-    await eve.get(`/api/messages?room=${room.body.id}`).expect(403);
-  });
-
-  test('exactly one of with/room is required', async () => {
-    const { agent } = await signUp(server.app, 'ada');
-    await agent.get('/api/messages').expect(400);
-  });
-});
-
 test('unknown API routes return JSON 404s', async () => {
   const res = await request(server.app).get('/api/nope').expect(404);
   expect(res.body).toEqual({ error: 'Not found' });

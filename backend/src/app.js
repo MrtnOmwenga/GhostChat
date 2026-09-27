@@ -43,7 +43,9 @@ function createApp() {
   }));
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/users', require('./routes/users'));
-  app.use('/api/rooms', require('./routes/rooms'));
+  const { rooms, invites } = require('./routes/rooms');
+  app.use('/api/rooms', rooms);
+  app.use('/api/invites', invites);
   app.use('/api/messages', require('./routes/messages'));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

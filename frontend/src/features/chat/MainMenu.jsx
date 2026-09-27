@@ -4,23 +4,11 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import panel from '../../ui/Panel.module.css';
 import api from '../../lib/api';
-import { contactAdded } from './chatSlice';
 import { signOut } from './ChatPage';
 
 const MainMenu = ({ ChangeView, close }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
-  const showMyRooms = async () => {
-    try {
-      const { data: rooms } = await api.get('/rooms/mine');
-      if (rooms.length === 0) toast.info('You have no rooms yet');
-      rooms.forEach((room) => dispatch(contactAdded({ id: room.id, name: room.name, kind: 'room' })));
-      close();
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
 
   const deleteAccount = async () => {
     // eslint-disable-next-line no-alert
@@ -36,8 +24,7 @@ const MainMenu = ({ ChangeView, close }) => {
   return (
     <ul className={panel.menu}>
       <li><button type="button" onClick={() => ChangeView('create')}>Create a room</button></li>
-      <li><button type="button" onClick={() => ChangeView('join')}>Join a room</button></li>
-      <li><button type="button" onClick={showMyRooms}>My rooms</button></li>
+      <li><button type="button" onClick={() => ChangeView('join')}>Join with an invite link</button></li>
       <li><button type="button" onClick={() => ChangeView('password')}>Change password</button></li>
       <li><button type="button" className={panel.danger} onClick={deleteAccount}>Delete account</button></li>
     </ul>

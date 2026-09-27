@@ -1,31 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { FaMagnifyingGlass, FaCircleUser, FaUsers } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import SBstyle from './Sidebar.module.css';
 import api from '../../lib/api';
 import { requestPresence } from '../../lib/socket';
-import { contactAdded, conversationOpened, historyLoaded } from './chatSlice';
+import { openConversation, startDirectChat } from '../../lib/messaging';
 
-export const openConversation = async (dispatch, contact) => {
-  dispatch(conversationOpened(contact.key));
-  try {
-    const params = contact.kind === 'room' ? { room: contact.id } : { with: contact.id };
-    const { data } = await api.get('/messages', { params });
-    dispatch(historyLoaded({ key: contact.key, messages: data }));
-  } catch (error) {
-    toast.error(error.message);
-  }
+const timeLabel = (iso) => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  return date.toDateString() === new Date().toDateString()
+    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 };
 
-const ContactRow = ({ name, kind, status, unread, active, onClick }) => {
+const ContactRow = ({
+  name, kind, status, preview, at, unread, active, onClick,
+}) => {
   const Icon = kind === 'room' ? FaUsers : FaCircleUser;
   return (
     <li>
       <button type="button" className={`${SBstyle.row} ${active ? SBstyle.active : ''}`} onClick={onClick}>
         <Icon size={34} className={SBstyle.avatar} aria-hidden="true" />
         <span className={SBstyle.rowText}>
-          <span className={SBstyle.name}>{name}</span>
+          <span className={SBstyle.topLine}>
+            <span className={SBstyle.name}>{name}</span>
+            {at && <span className={SBstyle.time}>{at}</span>}
+          </span>
+          {preview !== undefined && <span className={SBstyle.preview}>{preview}</span>}
           {status && <span className={`${SBstyle.status} ${status === 'Online' ? SBstyle.online : ''}`}>{status}</span>}
         </span>
         {unread && <span className={SBstyle.unread} aria-label="Unread messages" />}
@@ -37,7 +40,6 @@ const ContactRow = ({ name, kind, status, unread, active, onClick }) => {
 const SideBar = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
-  const dispatch = useDispatch();
   const { contacts, order, active } = useSelector((state) => state.chat);
 
   const userIdsKey = order.filter((key) => contacts[key].kind === 'user').map((key) => contacts[key].id).join(',');
@@ -60,19 +62,16 @@ const SideBar = () => {
   };
 
   const selectResult = (found) => {
-    dispatch(contactAdded({ id: found.id, name: found.username, kind: 'user' }));
     setResults(null);
     setQuery('');
-    openConversation(dispatch, { key: `user:${found.id}`, id: found.id, kind: 'user' });
+    startDirectChat(found).catch((error) => toast.error(error.message));
   };
 
   let list;
   if (results) {
     list = results.length === 0
       ? <p className={SBstyle.empty}>No users found</p>
-      : results.map((found) => (
-        <ContactRow key={found.id} name={found.username} kind="user" onClick={() => selectResult(found)} />
-      ));
+      : results.map((found) => <ContactRow key={found.id} name={found.username} kind="user" onClick={() => selectResult(found)} />);
   } else if (order.length === 0) {
     list = <p className={SBstyle.empty}>Search for someone by username, or create a room from the menu.</p>;
   } else {
@@ -83,10 +82,12 @@ const SideBar = () => {
           key={key}
           name={contact.name}
           kind={contact.kind}
-          status={contact.kind === 'room' ? 'Room' : (contact.online ? 'Online' : 'Offline')}
+          preview={contact.preview ?? (contact.kind === 'room' ? 'Room' : (contact.online ? 'Online' : 'Offline'))}
+          status={contact.preview !== undefined && contact.kind === 'user' ? (contact.online ? 'Online' : 'Offline') : null}
+          at={timeLabel(contact.previewAt)}
           unread={contact.unread}
           active={key === active}
-          onClick={() => openConversation(dispatch, contact)}
+          onClick={() => openConversation(key).catch((error) => toast.error(error.message))}
         />
       );
     });

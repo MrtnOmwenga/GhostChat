@@ -9,8 +9,12 @@ import Toggable from './MenuPanel';
 import IconButton from '../../ui/IconButton';
 import api from '../../lib/api';
 import { connect, disconnect } from '../../lib/socket';
+import {
+  startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite,
+} from '../../lib/messaging';
+import { toast } from 'react-toastify';
 import { signedIn, signedOut } from '../auth/sessionSlice';
-import { chatReset, contactAdded } from './chatSlice';
+import { chatReset } from './chatSlice';
 import { loadKeys, forgetKeys } from '../../lib/keystore';
 import UnlockPanel from '../auth/UnlockPanel';
 
@@ -18,6 +22,7 @@ export const signOut = async (dispatch, navigate) => {
   await api.post('/auth/logout').catch(() => {});
   await forgetKeys();
   disconnect();
+  stopMessaging();
   dispatch(chatReset());
   dispatch(signedOut());
   navigate('/login-register');
@@ -46,13 +51,16 @@ const ChatPage = () => {
           return;
         }
         setLocked(false);
-        const [{ data: people }, { data: rooms }] = await Promise.all([
-          api.get('/messages/conversations'),
-          api.get('/rooms/mine'),
-        ]);
-        people.forEach((person) => dispatch(contactAdded({ id: person.id, name: person.username, kind: 'user' })));
-        rooms.forEach((room) => dispatch(contactAdded({ id: room.id, name: room.name, kind: 'room' })));
-        connect();
+        startMessaging(me);
+        await loadConversations();
+        connect({ onMessage: receiveLive, onRoom: onRoomChanged });
+        // An invite link opened before signing in is picked up here (see JoinPage).
+        const pending = sessionStorage.getItem('pendingInvite');
+        if (pending) {
+          sessionStorage.removeItem('pendingInvite');
+          const { id, secret } = JSON.parse(pending);
+          await acceptInvite(id, secret).catch((error) => toast.error(error.message));
+        }
       } catch {
         if (!cancelled) navigate('/login-register');
       }
