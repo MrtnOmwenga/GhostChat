@@ -1,6 +1,10 @@
 // Seeds two demo users, a direct conversation and a room with messages of every shape the UI has
 // to handle: one-word replies, long paragraphs, line breaks, emoji, and unbroken long strings.
-// Re-running replaces the previous demo data.  Usage: npm run seed
+//
+//   npm run seed                      creates demo users maya and leo (replacing earlier demo data)
+//   npm run seed -- "Test A" TestB    uses existing accounts: the first two get the direct
+//                                     conversation, everyone listed joins the room. Their own
+//                                     messages are left alone; running twice adds the messages twice.
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../src/models/user');
@@ -43,31 +47,57 @@ const room = [
   }
   await mongoose.connect(MONGODB_URI);
 
-  const names = ['maya', 'leo'];
-  const old = await User.find({ username: { $in: names } });
-  await Message.deleteMany({ from: { $in: old.map((u) => u._id) } });
-  await Room.deleteMany({ name: 'Night Owls' });
-  await User.deleteMany({ username: { $in: names } });
+  const existing = process.argv.slice(2);
+  let people;
+  let nightOwls;
+  if (existing.length > 0) {
+    if (existing.length < 2) throw new Error('Name at least two existing users');
+    people = await Promise.all(existing.map(async (username) => {
+      const user = await User.findOne({ username });
+      if (!user) throw new Error(`No user named "${username}"`);
+      return user;
+    }));
+    nightOwls = await Room.findOne({ name: 'Night Owls' });
+    if (nightOwls) {
+      await Room.updateOne({ _id: nightOwls._id }, { $addToSet: { members: { $each: people.map((u) => u._id) } } });
+    } else {
+      nightOwls = await Room.create({
+        name: 'Night Owls', passwordHash: await bcrypt.hash(PASSWORD, 12), creator: people[0]._id, members: people.map((u) => u._id),
+      });
+    }
+  } else {
+    const names = ['maya', 'leo'];
+    const old = await User.find({ username: { $in: names } });
+    await Message.deleteMany({ from: { $in: old.map((u) => u._id) } });
+    await Room.deleteMany({ name: 'Night Owls' });
+    await User.deleteMany({ username: { $in: names } });
+    const passwordHash = await bcrypt.hash(PASSWORD, 12);
+    people = await User.create(names.map((username) => ({ username, passwordHash })));
+    nightOwls = await Room.create({ name: 'Night Owls', passwordHash, creator: people[0]._id, members: people.map((u) => u._id) });
+  }
 
-  const passwordHash = await bcrypt.hash(PASSWORD, 12);
-  const [maya, leo] = await User.create(names.map((username) => ({ username, passwordHash })));
-  const users = { maya, leo };
-  const nightOwls = await Room.create({ name: 'Night Owls', passwordHash, creator: maya._id, members: [maya._id, leo._id] });
+  // The scripts are written for two speakers; "maya" and "leo" map onto the first two people,
+  // and room lines rotate through everyone listed.
+  const speaker = { maya: people[0], leo: people[1] };
 
   // Spread the conversation over the last couple of hours so timestamps vary.
   const start = Date.now() - 2 * 60 * 60 * 1000;
   const step = (i) => new Date(start + i * 7 * 60 * 1000);
   await Message.insertMany([
-    ...dm.map(([from, text], i) => ({
-      from: users[from]._id, fromUsername: from, to: users[from === 'maya' ? 'leo' : 'maya']._id, text, createdAt: step(i),
-    })),
-    ...room.map(([from, text], i) => ({
-      from: users[from]._id, fromUsername: from, room: nightOwls._id, text, createdAt: step(i + dm.length),
-    })),
+    ...dm.map(([from, text], i) => {
+      const sender = speaker[from];
+      const recipient = speaker[from === 'maya' ? 'leo' : 'maya'];
+      return { from: sender._id, fromUsername: sender.username, to: recipient._id, text, createdAt: step(i) };
+    }),
+    ...room.map(([, text], i) => {
+      const sender = people[i % people.length];
+      return { from: sender._id, fromUsername: sender.username, room: nightOwls._id, text, createdAt: step(i + dm.length) };
+    }),
   ]);
 
-  console.log(`Seeded users maya and leo (password: "${PASSWORD}"), room "Night Owls" (same password),`);
-  console.log(`${dm.length} direct and ${room.length} room messages.`);
+  const who = people.map((u) => u.username).join(', ');
+  console.log(`Seeded ${dm.length} direct messages between ${people[0].username} and ${people[1].username},`);
+  console.log(`and ${room.length} messages in "Night Owls" (members: ${who}; room password "${PASSWORD}").`);
   await mongoose.disconnect();
 })().catch((err) => {
   console.error(err.message);
