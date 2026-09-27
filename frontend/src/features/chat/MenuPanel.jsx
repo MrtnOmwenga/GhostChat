@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { FaXmark } from 'react-icons/fa6';
 import MainMenu from './MainMenu';
 import RoomForm from './RoomForm';
+import ChangePasswordForm from '../auth/ChangePasswordForm';
 import IconButton from '../../ui/IconButton';
 import panel from '../../ui/Panel.module.css';
 
-const TITLES = { menu: 'Menu', create: 'Create a room', join: 'Join a room' };
+const TITLES = {
+  menu: 'Menu', create: 'Create a room', join: 'Join a room', password: 'Change password',
+};
 
 /** The chat menu as a modal panel: the main menu, or one of the room forms. */
 const Toggable = ({ close }) => {
@@ -27,6 +30,7 @@ const Toggable = ({ close }) => {
         {view === 'menu' && <MainMenu ChangeView={setView} close={close} />}
         {view === 'create' && <RoomForm mode="create" close={close} back={() => setView('menu')} />}
         {view === 'join' && <RoomForm mode="join" close={close} back={() => setView('menu')} />}
+        {view === 'password' && <ChangePasswordForm close={close} back={() => setView('menu')} />}
       </div>
     </div>
   );

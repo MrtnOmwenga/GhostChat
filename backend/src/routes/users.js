@@ -1,12 +1,11 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const config = require('../config');
 const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
+const KeyEntry = require('../models/keyEntry');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
-const { requireAuth, setSessionCookie, clearSessionCookie } = require('../auth');
+const { requireAuth, clearSessionCookie } = require('../auth');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -20,16 +19,13 @@ router.get('/search', async (req, res) => {
   res.json(users);
 });
 
-// Accounts are only ever changed by their owner, so there are no /users/:id write routes.
-router.patch('/me', async (req, res) => {
-  const changes = validate(schemas.profileUpdate, req.body);
-  const update = {};
-  if (changes.username) update.username = changes.username;
-  if (changes.password) update.passwordHash = await bcrypt.hash(changes.password, config.bcryptRounds);
-  const user = await User.findByIdAndUpdate(req.user.id, update, { returnDocument: 'after', runValidators: true });
-  if (!user) throw new HttpError(404, 'Account not found');
-  setSessionCookie(res, user); // the session carries the username
-  res.json(user);
+// A user's full key history, oldest first, exactly as signed. Clients verify it themselves
+// (docs/DESIGN.md §5.2); usernames can't change in v3 because they're bound to these keys.
+router.get('/:id/keys', async (req, res) => {
+  const id = validate(schemas.objectId, req.params.id);
+  const entries = await KeyEntry.find({ user: id }).sort({ version: 1 });
+  if (entries.length === 0) throw new HttpError(404, 'No such user');
+  res.json(entries.map((e) => e.entry));
 });
 
 // Deleting an account removes everything that identifies the user: the account, every message
@@ -41,6 +37,7 @@ router.delete('/me', async (req, res) => {
   await Room.deleteMany({ members: { $size: 0 } });
   // Rooms they created that still have members pass to the longest-standing remaining member.
   await Room.updateMany({ creator: me }, [{ $set: { creator: { $arrayElemAt: ['$members', 0] } } }], { updatePipeline: true });
+  await KeyEntry.deleteMany({ user: me });
   await User.deleteOne({ _id: me });
   req.app.get('realtime')?.disconnectUser(me);
   clearSessionCookie(res);
