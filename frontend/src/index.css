@@ -1,10 +1,88 @@
+:root {
+  --bg: #0D1317;
+  --surface: #161D22;
+  --surface-2: #242A2E;
+  --accent: #89D2DC;
+  --accent-strong: #4EBCCB;
+  --ink: #101D42;
+  --text: #FCFCFC;
+  --muted: rgba(252, 252, 252, 0.62);
+  --online: #5BD68C;
+  --danger: #FF7A7A;
+  --radius: 14px;
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Staatliches', 'Figtree', sans-serif;
+  --header-height: 3.5rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
-  background-color: #0D1317;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Keeps child margins (the hero section's) inside the page instead of collapsing out of it. */
 #root {
   display: flow-root;
+  min-height: 100svh;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Visible to screen readers only; used for form labels whose placeholder is the visual label. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* In-page links land below the fixed header rather than under it. */
+[id] {
+  scroll-margin-top: var(--header-height);
 }

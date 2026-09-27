@@ -1,38 +1,31 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa';
-import { FaXmark } from 'react-icons/fa6';
+import { Link } from 'react-router-dom';
+import { FaBars, FaXmark } from 'react-icons/fa6';
+import IconButton from './icon-button.component';
 import NavStyle from '../assets/style/nav.module.css';
 
 const Nav = () => {
-  const [view, setView] = useState('none');
-  const navigate = useNavigate();
-
-  const Click = () => (
-    view === 'none' ? setView('block') : setView('none')
-  );
-
-  const LoginRegister = () => {
-    navigate('/login-register');
-  };
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
 
   return (
-    <nav className={NavStyle.nav}>
-      <div>
-        { view === 'none' && <FaBars className={NavStyle.icon} size={25} onClick={Click} /> }
-        { view !== 'none' && <FaXmark className={NavStyle.icon} size={30} onClick={Click} />}
-      </div>
-      <div className={NavStyle.menu} style={{ display: view }}>
-        <div className={NavStyle.center_menu}>
-          <button type="button">Home</button>
-          <button type="button">About</button>
-          <button type="button">FAQS</button>
-        </div>
-        <div className={NavStyle.right_menu}>
-          <button type="button" onClick={LoginRegister}>Start Messaging</button>
-        </div>
-      </div>
-    </nav>
+    <header className={NavStyle.nav}>
+      <a href="#top" className={NavStyle.brand} onClick={close}>GhostChat</a>
+      <IconButton
+        icon={open ? FaXmark : FaBars}
+        label={open ? 'Close menu' : 'Open menu'}
+        size={22}
+        className={NavStyle.toggle}
+        aria-expanded={open}
+        aria-controls="site-menu"
+        onClick={() => setOpen(!open)}
+      />
+      <nav id="site-menu" className={`${NavStyle.menu} ${open ? NavStyle.open : ''}`}>
+        <a href="#features" onClick={close}>Features</a>
+        <a href="#faq" onClick={close}>FAQ</a>
+        <Link to="/login-register" className={NavStyle.cta}>Start messaging</Link>
+      </nav>
+    </header>
   );
 };
 

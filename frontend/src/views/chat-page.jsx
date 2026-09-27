@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FaArrowRightFromBracket, FaBars, FaXmark } from 'react-icons/fa6';
+import { FaArrowRightFromBracket, FaBars } from 'react-icons/fa6';
 import CPstyle from '../assets/style/chat-page.module.css';
 import Chat from '../components/chat.component';
 import SideBar from '../components/sidebar.component';
+import Toggable from '../components/toggable.component';
+import IconButton from '../components/icon-button.component';
 import api from '../api';
 import { connect, disconnect } from '../socket';
 import { signedIn, signedOut } from '../store/session';
@@ -20,6 +22,7 @@ export const signOut = async (dispatch, navigate) => {
 
 const ChatPage = () => {
   const user = useSelector((state) => state.session.user);
+  const active = useSelector((state) => state.chat.active);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -49,20 +52,19 @@ const ChatPage = () => {
   if (!user) return null;
 
   return (
-    <div>
-      <FaArrowRightFromBracket size={20} className={CPstyle.logout} onClick={() => signOut(dispatch, navigate)} />
-      <div className={CPstyle.bar}>
-        {menuOpen
-          ? <FaXmark className={CPstyle.menu} onClick={() => setMenuOpen(false)} />
-          : <FaBars className={CPstyle.menu} onClick={() => setMenuOpen(true)} />}
-        <p>GhostChat</p>
+    <div className={CPstyle.page}>
+      <header className={CPstyle.bar}>
+        <IconButton icon={FaBars} label="Menu" onClick={() => setMenuOpen(true)} />
+        <p className={CPstyle.title}>GhostChat</p>
+        <span className={CPstyle.me}>{user.username}</span>
+        <IconButton icon={FaArrowRightFromBracket} label="Sign out" onClick={() => signOut(dispatch, navigate)} />
+      </header>
+      {/* On narrow screens only one pane shows: the list, or the open conversation. */}
+      <div className={`${CPstyle.panes} ${active ? CPstyle.conversationOpen : ''}`}>
+        <SideBar />
+        <Chat user={user} />
       </div>
-      <div className={CPstyle.chatpage}>
-        <SideBar user={user} menuOpen={menuOpen} closeMenu={() => setMenuOpen(false)} />
-        <div className={CPstyle.ChatContainer}>
-          <Chat user={user} />
-        </div>
-      </div>
+      {menuOpen && <Toggable close={() => setMenuOpen(false)} />}
     </div>
   );
 };
