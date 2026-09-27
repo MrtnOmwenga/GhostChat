@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const {
-  startServer, signUp, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, randomB64,
+  startServer, signUp, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, randomB64, signedDeletion, signedReceipt,
 } = require('./helpers');
 const { genesisHash } = require('../src/services/chain');
 
@@ -68,8 +68,65 @@ describe('direct messages', () => {
     expect(await send(envelope(ada, { conversation, recipients: [grace.user.id] }))).toMatch(/sealed to both/);
     expect(await send(dm(ada, grace, conversation, { overrides: { senderKeyVersion: 2 } }))).toMatch(/current key/);
     const outsider = await signUp(server.app, 'eve');
-    const fresh = await connectAs(ada); // the first socket has used its message budget
-    expect((await emitAck(fresh, 'message', dm(ada, outsider, dmOf(grace.user.id, outsider.user.id)))).error).toMatch(/not a participant/);
+    expect(await send(dm(ada, outsider, dmOf(grace.user.id, outsider.user.id)))).toMatch(/not a participant/);
+  });
+
+  test('an author can delete a message with a signed deletion; others cannot', async () => {
+    const { ada, grace, conversation } = await pair();
+    const [adaSocket, graceSocket] = [await connectAs(ada), await connectAs(grace)];
+    const sent = dm(ada, grace, conversation);
+    await emitAck(adaSocket, 'message', sent);
+    const target = { type: 'delete', conversation, seq: 1, hash: sent.hash };
+
+    await grace.agent.post('/api/messages/delete').send({ deletion: signedDeletion(grace, target) }).expect(403);
+    await ada.agent.post('/api/messages/delete').send({ deletion: { ...signedDeletion(ada, target), seq: 2 } }).expect(400);
+    await ada.agent.post('/api/messages/delete').send({ deletion: signedDeletion(ada, { ...target, hash: 'a'.repeat(64) }) }).expect(404);
+
+    const broadcast = nextEvent(graceSocket, 'message');
+    const deletion = signedDeletion(ada, target);
+    const tomb = (await ada.agent.post('/api/messages/delete').send({ deletion }).expect(200)).body;
+    expect(tomb).toMatchObject({ seq: 1, hash: sent.hash, prev: sent.prev, deleted: deletion });
+    expect(tomb.ciphertext).toBeUndefined();
+    expect(await broadcast).toEqual(tomb);
+    await ada.agent.post('/api/messages/delete').send({ deletion: signedDeletion(ada, target) }).expect(409);
+  });
+
+  test('two people sending at once, with automatic rebasing, always end with one intact chain', async () => {
+    const { ada, grace, conversation } = await pair();
+    const people = [[ada, grace, await connectAs(ada)], [grace, ada, await connectAs(grace)]];
+    const PER_PERSON = 15;
+
+    // What the browser does: link onto the newest head it knows; on conflict, learn the new head
+    // from the reply and try again.
+    const head = { seq: 0, hash: null };
+    const sendWithRebase = async ([from, to, socket]) => {
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const env = dm(from, to, conversation, { seq: head.seq + 1, prev: head.hash || undefined });
+        // eslint-disable-next-line no-await-in-loop
+        const reply = await emitAck(socket, 'message', env);
+        if (reply.status === 'ok') {
+          if (env.seq > head.seq) Object.assign(head, { seq: env.seq, hash: env.hash });
+          return;
+        }
+        if (reply.status !== 'conflict') throw new Error(reply.error);
+        if (reply.head.seq > head.seq) Object.assign(head, reply.head);
+      }
+      throw new Error('gave up');
+    };
+    const sendMany = async (person) => {
+      for (let i = 0; i < PER_PERSON; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await sendWithRebase(person);
+      }
+    };
+    await Promise.all(people.map(sendMany));
+
+    const chain = (await ada.agent.get(`/api/messages?conversation=${conversation}&limit=100`)).body;
+    expect(chain).toHaveLength(2 * PER_PERSON);
+    chain.forEach((env, i) => {
+      expect(env.seq).toBe(i + 1);
+      if (i > 0) expect(env.prev).toBe(chain[i - 1].hash);
+    });
   });
 
   test('conversations list each chat with its latest envelope, most recent first', async () => {
@@ -94,12 +151,40 @@ describe('direct messages', () => {
     await emitAck(graceSocket, 'message', second);
 
     const closed = nextEvent(adaSocket, 'disconnect');
-    await ada.agent.delete('/api/users/me').expect(204);
+    const deletion = signedDeletion(ada, { type: 'account-deleted' });
+    await ada.agent.delete('/api/users/me').send({ deletion }).expect(204);
     await closed;
     const history = (await grace.agent.get(`/api/messages?conversation=${conversation}`)).body;
-    expect(history[0]).toMatchObject({ seq: 1, hash: first.hash, deleted: { reason: 'account-deleted' } });
+    expect(history[0]).toMatchObject({ seq: 1, hash: first.hash, deleted: deletion });
     expect(history[0].ciphertext).toBeUndefined();
     expect(history[1]).toEqual(second);
+  });
+});
+
+describe('read receipts', () => {
+  test('flow only between people who both have them on, and must be signed by the reader', async () => {
+    const { ada, grace, conversation } = await pair();
+    const [adaSocket, graceSocket] = [await connectAs(ada), await connectAs(grace)];
+    const sent = dm(ada, grace, conversation);
+    await emitAck(adaSocket, 'message', sent);
+
+    expect((await emitAck(graceSocket, 'receipt', signedReceipt(grace, conversation, sent))).error).toBe('read receipts are off');
+    await grace.agent.patch('/api/users/me/settings').send({ receiptsEnabled: true }).expect(200);
+    await ada.agent.patch('/api/users/me/settings').send({ receiptsEnabled: true }).expect(200);
+
+    expect((await emitAck(graceSocket, 'receipt', signedReceipt(ada, conversation, sent))).error).toMatch(/your own receipts/);
+    expect((await emitAck(graceSocket, 'receipt', { ...signedReceipt(grace, conversation, sent), upToHash: 'b'.repeat(64) })).error).toBe('no such message');
+    const forged = { ...signedReceipt(grace, conversation, sent), at: new Date(0).toISOString() };
+    expect((await emitAck(graceSocket, 'receipt', forged)).error).toMatch(/signature/);
+
+    const pushed = nextEvent(adaSocket, 'receipt');
+    const receipt = signedReceipt(grace, conversation, sent);
+    expect((await emitAck(graceSocket, 'receipt', receipt)).status).toBe('ok');
+    expect(await pushed).toEqual(receipt);
+    expect((await ada.agent.get(`/api/messages/receipts?conversation=${conversation}`)).body).toEqual([receipt]);
+
+    await ada.agent.patch('/api/users/me/settings').send({ receiptsEnabled: false });
+    expect((await ada.agent.get(`/api/messages/receipts?conversation=${conversation}`)).body).toEqual([]);
   });
 });
 
@@ -183,8 +268,11 @@ test('presence goes offline only when the last connection closes', async () => {
 });
 
 test('message sending is rate limited per connection', async () => {
+  const config = require('../src/config');
   const { ada, grace, conversation } = await pair();
+  config.rateLimits.messagesPer10s = 5; // the budget is read when a connection opens
   const socket = await connectAs(ada);
+  config.rateLimits.messagesPer10s = 1000;
   const results = [];
   let prev = genesisHash(conversation);
   for (let i = 1; i <= 7; i += 1) {

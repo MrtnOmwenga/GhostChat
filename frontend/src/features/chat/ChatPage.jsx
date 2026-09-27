@@ -10,7 +10,8 @@ import IconButton from '../../ui/IconButton';
 import api from '../../lib/api';
 import { connect, disconnect } from '../../lib/socket';
 import {
-  startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite,
+  startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite, receiveReceipt, markRead,
+  receiveKeysChanged, setOwnKeysChangedHandler,
 } from '../../lib/messaging';
 import { toast } from 'react-toastify';
 import { signedIn, signedOut } from '../auth/sessionSlice';
@@ -31,6 +32,7 @@ export const signOut = async (dispatch, navigate) => {
 const ChatPage = () => {
   const user = useSelector((state) => state.session.user);
   const active = useSelector((state) => state.chat.active);
+  const logCheck = useSelector((state) => state.chat.log);
   const [menuOpen, setMenuOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [unlockedAt, setUnlockedAt] = useState(0);
@@ -53,7 +55,17 @@ const ChatPage = () => {
         setLocked(false);
         startMessaging(me);
         await loadConversations();
-        connect({ onMessage: receiveLive, onRoom: onRoomChanged });
+        setOwnKeysChangedHandler(async () => {
+          await forgetKeys();
+          disconnect();
+          stopMessaging();
+          dispatch(chatReset());
+          toast.info('Your keys changed on another device. Unlock to continue.');
+          setLocked(true);
+        });
+        connect({
+          onMessage: receiveLive, onRoom: onRoomChanged, onReceipt: receiveReceipt, onKeysChanged: receiveKeysChanged,
+        });
         // An invite link opened before signing in is picked up here (see JoinPage).
         const pending = sessionStorage.getItem('pendingInvite');
         if (pending) {
@@ -71,6 +83,13 @@ const ChatPage = () => {
     };
   }, [dispatch, navigate, unlockedAt]);
 
+  // Coming back to the tab counts as reading the open conversation.
+  useEffect(() => {
+    const onVisible = () => { if (active && document.visibilityState === 'visible') markRead(active); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [active]);
+
   if (!user) return null;
   if (locked) {
     return <UnlockPanel user={user} onUnlocked={() => setUnlockedAt(Date.now())} onSignOut={() => signOut(dispatch, navigate)} />;
@@ -84,6 +103,12 @@ const ChatPage = () => {
         <span className={CPstyle.me}>{user.username}</span>
         <IconButton icon={FaArrowRightFromBracket} label="Sign out" onClick={() => signOut(dispatch, navigate)} />
       </header>
+      {logCheck && !logCheck.ok && (
+        <p className={CPstyle.logAlert} role="alert">
+          {`Key transparency check failed: ${logCheck.problems[0]}. `}
+          <button type="button" onClick={() => navigate('/transparency')}>Details</button>
+        </p>
+      )}
       {/* On narrow screens only one pane shows: the list, or the open conversation. */}
       <div className={`${CPstyle.panes} ${active ? CPstyle.conversationOpen : ''}`}>
         <SideBar />

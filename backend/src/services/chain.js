@@ -4,6 +4,7 @@ const Room = require('../models/room');
 const User = require('../models/user');
 const KeyEntry = require('../models/keyEntry');
 const { objectHash, sha256Hex, verifySignature } = require('../crypto');
+const files = require('./files');
 
 const b64 = Joi.string().pattern(/^[A-Za-z0-9_-]+$/);
 const objectId = Joi.string().hex().length(24);
@@ -18,8 +19,12 @@ const envelopeSchema = Joi.object({
   senderKeyVersion: Joi.number().integer().min(1).required(),
   epoch: Joi.number().integer().min(1),
   nonce: b64.length(32).required(),
-  ciphertext: b64.max(24000).required(),
+  // Room for a text of 4,000 characters, or a file message with its embedded thumbnail.
+  ciphertext: b64.max(64000).required(),
   keys: Joi.object().pattern(objectId, Joi.object({ keyVersion: Joi.number().integer().min(1).required(), sealed: b64.length(107).required() })),
+  // The encrypted files a message refers to. Their keys are inside the ciphertext; the server only
+  // learns which stored blobs the message uses, so it can check access and delete them with it.
+  attachments: Joi.array().items(Joi.object({ id: hex64.required(), size: Joi.number().integer().min(1).required() })).min(1).max(1),
   logHead: Joi.object().unknown(true),
   createdAt: Joi.string().isoDate().required(),
   hash: hex64.required(),
@@ -78,6 +83,8 @@ async function appendEnvelope(envelope, userId) {
   if (!key || key.version !== env.senderKeyVersion) return { status: 'error', error: 'sign with your current key' };
   if (objectHash({ ...env, hash: undefined }) !== env.hash) return { status: 'error', error: 'hash does not match the envelope' };
   if (!verifySignature(key.signingKey, env.hash, env.signature)) return { status: 'error', error: 'invalid signature' };
+  const attachmentProblem = await files.checkAttachments(env, userId);
+  if (attachmentProblem) return { status: 'error', error: attachmentProblem };
 
   const head = await Message.findOne({ conversation: env.conversation }).sort({ seq: -1 });
   const headSeq = head ? head.seq : 0;
@@ -104,6 +111,32 @@ async function conflict(env) {
   };
 }
 
+const deletionSchema = Joi.object({
+  type: Joi.valid('delete', 'account-deleted').required(),
+  user: objectId.required(),
+  conversation: Joi.string().when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  seq: Joi.number().integer().min(1).when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  hash: hex64.when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  at: Joi.string().isoDate().required(),
+  keyVersion: Joi.number().integer().min(1).required(),
+  signature: b64.length(86).required(),
+});
+
+/**
+ * Checks a signed deletion (docs/DESIGN.md §6.3): a statement by the author, with their current
+ * key, that a message (or all of an account's messages) should be erased. Clients verify the same
+ * signature, so a tombstone the author didn't sign is visible as such.
+ */
+async function checkDeletion(deletion, userId) {
+  const { error, value } = deletionSchema.validate(deletion, { convert: false });
+  if (error) return error.message;
+  if (value.user !== userId) return 'you can only delete as yourself';
+  const key = await currentKeyEntry(userId);
+  if (!key || key.version !== value.keyVersion) return 'sign with your current key';
+  if (!verifySignature(key.signingKey, objectHash(value), value.signature)) return 'invalid deletion signature';
+  return null;
+}
+
 /** Erases a message's content but keeps what the chain needs to stay verifiable. */
 function tombstone(envelope, deletion) {
   const {
@@ -113,5 +146,5 @@ function tombstone(envelope, deletion) {
 }
 
 module.exports = {
-  appendEnvelope, access, genesisHash, dmConversation, tombstone, envelopeSchema,
+  appendEnvelope, access, genesisHash, dmConversation, tombstone, envelopeSchema, checkDeletion,
 };

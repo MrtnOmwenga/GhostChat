@@ -6,3 +6,6 @@ export * from './password';
 export * from './vault';
 export * from './keyHistory';
 export * from './envelope';
+export * from './safety';
+export * from './merkle';
+export * from './files';

@@ -7,6 +7,7 @@ import Home from './features/landing/Home';
 const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const ChatPage = lazy(() => import('./features/chat/ChatPage'));
 const JoinPage = lazy(() => import('./features/chat/JoinPage'));
+const TransparencyPage = lazy(() => import('./features/transparency/TransparencyPage'));
 
 const App = () => (
   <div className="App">
@@ -17,6 +18,7 @@ const App = () => (
           <Route path="/chatpage" element={<ChatPage />} />
           <Route path="/login-register" element={<AuthPage />} />
           <Route path="/join/:inviteId" element={<JoinPage />} />
+          <Route path="/transparency" element={<TransparencyPage />} />
         </Routes>
       </Suspense>
     </Router>

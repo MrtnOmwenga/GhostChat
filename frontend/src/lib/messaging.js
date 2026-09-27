@@ -7,12 +7,15 @@ import api from './api';
 import store from '../app/store';
 import { currentKeys } from './keystore';
 import { emitWithAck } from './socket';
+import { checkUserInLog, currentHead, checkPeerHead } from './log';
 import {
   sodium as loadSodium, verifyHistory, dmConversation, genesisHash, encryptPayload, decryptPayload,
-  sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8,
+  sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
+  encryptFile, decryptFile,
 } from './crypto';
+import { MAX_FILE_BYTES, formatBytes, isInlineImage, prepareFile } from './media';
 import {
-  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened,
+  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened, receiptReceived, keysChanged,
 } from '../features/chat/chatSlice';
 
 let me = null;
@@ -21,6 +24,9 @@ const roomKeys = new Map(); // roomId -> Map(epoch -> key bytes)
 const rooms = new Map(); // roomId -> room as returned by the API
 const names = new Map(); // userId -> username
 const loaded = new Set(); // conversations whose history has been fetched
+const receiptSent = new Map(); // conversation -> highest seq I've sent a receipt for
+const fileKeys = new Map(); // file id -> { key, mime } from decrypted messages
+const fileUrls = new Map(); // file id -> Promise<blob: URL of the decrypted file>
 
 export function startMessaging(user) {
   me = user;
@@ -29,7 +35,8 @@ export function startMessaging(user) {
 
 export function stopMessaging() {
   me = null;
-  [histories, roomKeys, rooms, names, loaded].forEach((m) => m.clear());
+  fileUrls.forEach((url) => url.then(URL.revokeObjectURL, () => {}));
+  [histories, roomKeys, rooms, names, loaded, receiptSent, fileKeys, fileUrls].forEach((m) => m.clear());
 }
 
 const myKeys = () => currentKeys();
@@ -48,7 +55,13 @@ export async function keysOf(userId, { minVersion = 0 } = {}) {
   const request = (async () => {
     const sodium = await loadSodium();
     const { data: entries } = await api.get(`/users/${userId}/keys`);
-    return { ...verifyHistory(sodium, entries), entries };
+    const history = verifyHistory(sodium, entries);
+    // A key history the transparency log doesn't vouch for could be one the server made up.
+    const log = await checkUserInLog(userId, entries).catch(() => ({ problems: ['the transparency log could not be checked'], paths: [] }));
+    const problems = [...history.problems, ...log.problems];
+    return {
+      ...history, ok: problems.length === 0, problems, entries, logPaths: log.paths, logHead: log.head,
+    };
   })();
   histories.set(userId, request);
   return request;
@@ -88,11 +101,19 @@ async function toRecord(sodium, env, previous) {
     createdAt: env.createdAt,
     envelope: env,
   };
-  if (env.deleted) {
-    return { ...base, kind: 'deleted', deleted: env.deleted, verification: { signature: null, link, problems: [] } };
+  if (!names.has(env.sender)) {
+    // Someone no longer in any shared room, or a deleted account: the key history still names them.
+    const history = await keysOf(env.sender).catch(() => null);
+    const name = history?.entries?.[0]?.username;
+    if (name) {
+      names.set(env.sender, name);
+      base.senderName = name;
+    }
   }
+  if (env.deleted) return { ...base, kind: 'deleted', deleted: env.deleted, verification: await verifyDeletion(sodium, env, link) };
 
-  const problems = [];
+  // A broken link is listed first: it says where in the chain things went wrong.
+  const problems = link === false ? ['does not link to the previous message'] : [];
   let signature = false;
   try {
     const history = await keysOf(env.sender, { minVersion: env.senderKeyVersion });
@@ -105,7 +126,11 @@ async function toRecord(sodium, env, previous) {
   } catch {
     problems.push("the sender's keys are unavailable");
   }
-  if (link === false) problems.push('does not link to the previous message');
+  const splitView = await checkPeerHead(env.logHead).catch(() => null);
+  if (splitView) {
+    problems.push(splitView);
+    signature = false;
+  }
 
   try {
     const payload = decryptPayload(sodium, await payloadKey(sodium, env), env);
@@ -114,10 +139,50 @@ async function toRecord(sodium, env, previous) {
       const text = (EVENT_TEXT[payload.event] || (() => ''))(base.senderName);
       return { ...base, kind: 'event', event: payload.event, text, previewText: text, verification };
     }
+    if (payload.type === 'file') return fileRecord(base, env, payload, verification);
     return { ...base, kind: 'text', text: payload.text, verification };
   } catch (error) {
     return { ...base, kind: 'unreadable', previewText: 'Message could not be decrypted', verification: { signature, link, problems: [...problems, error.message] } };
   }
+}
+
+/**
+ * A message with a file. The file key stays in this module; the record carries what the UI shows.
+ * The file named inside the encrypted payload must be the one the signed envelope lists, so the
+ * hash the sender signed is the hash the download is checked against.
+ */
+function fileRecord(base, env, payload, verification) {
+  const { key, ...file } = payload.file;
+  const listed = env.attachments?.some((a) => a.id === file.id && a.size === file.size);
+  const checked = listed ? verification : { ...verification, signature: false, problems: [...verification.problems, 'the attachment is not the one the signed envelope lists'] };
+  fileKeys.set(file.id, { key, mime: file.mime });
+  const text = payload.text || '';
+  const label = isInlineImage(file.mime) ? '📷 Photo' : `📎 ${file.name}`;
+  return {
+    ...base, kind: 'file', text, file, previewText: text ? `${label.split(' ')[0]} ${text}` : label, verification: checked,
+  };
+}
+
+/**
+ * A tombstone is only as good as its deletion signature: it must be signed by the message's
+ * author and name this exact message (or the whole account).
+ */
+async function verifyDeletion(sodium, env, link) {
+  const d = env.deleted;
+  const problems = [];
+  let signature = false;
+  try {
+    const history = await keysOf(env.sender, { minVersion: d.keyVersion });
+    const names = d.type === 'account-deleted' || (d.conversation === env.conversation && d.seq === env.seq && d.hash === env.hash);
+    if (d.user !== env.sender) problems.push('deleted by someone other than the author');
+    if (!names) problems.push('the deletion names a different message');
+    if (!verifyObject(sodium, d, history.entries[d.keyVersion - 1]?.signingKey)) problems.push('deletion signature does not match');
+    signature = problems.length === 0;
+  } catch {
+    problems.push("the author's keys are unavailable");
+  }
+  if (link === false) problems.push('does not link to the previous message');
+  return { signature, link, problems, deletion: true };
 }
 
 /** Verifies, decrypts and stores envelopes of one conversation, in chain order. */
@@ -134,10 +199,18 @@ export async function processEnvelopes(conversation, envelopes, { live = false }
     records.push(record);
   }
   store.dispatch(recordsReceived({ conversation, records, meId: me.id, live }));
+  if (live) markRead(conversation);
 }
 
 export async function loadHistory(conversation) {
   const { data } = await api.get('/messages', { params: { conversation } });
+  loaded.add(conversation);
+  await processEnvelopes(conversation, data);
+}
+
+/** Loads the whole chain (up to 2000 messages) so every link back to the first can be checked. */
+export async function loadFullChain(conversation) {
+  const { data } = await api.get('/messages', { params: { conversation, after: 0, limit: 2000 } });
   loaded.add(conversation);
   await processEnvelopes(conversation, data);
 }
@@ -165,7 +238,7 @@ export async function receiveLive(env) {
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
-async function buildEnvelope(sodium, conversation, payload) {
+async function buildEnvelope(sodium, conversation, payload, attachments) {
   const records = store.getState().chat.messages[conversation] || [];
   const head = records.length ? records[records.length - 1] : { seq: 0, hash: genesisHash(sodium, conversation) };
   const body = {
@@ -177,6 +250,8 @@ async function buildEnvelope(sodium, conversation, payload) {
     senderKeyVersion: myVersion(),
     createdAt: new Date().toISOString(),
   };
+  if (currentHead()) body.logHead = currentHead();
+  if (attachments) body.attachments = attachments;
   if (conversation.startsWith('room:')) {
     const room = rooms.get(roomIdOf(conversation));
     body.epoch = room.epoch;
@@ -200,12 +275,12 @@ async function buildEnvelope(sodium, conversation, payload) {
  * the server returns what we missed; we apply it, re-link onto the new head, re-sign and resend
  * (docs/DESIGN.md §6.2). A room whose key must be replaced first is rotated here too.
  */
-async function sendPayload(conversation, payload) {
+async function sendPayload(conversation, payload, attachments) {
   const sodium = await loadSodium();
   if (!loaded.has(conversation)) await loadHistory(conversation);
   for (let attempt = 1; attempt <= 8; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const env = await buildEnvelope(sodium, conversation, payload);
+    const env = await buildEnvelope(sodium, conversation, payload, attachments);
     // eslint-disable-next-line no-await-in-loop
     const reply = await emitWithAck('message', env);
     if (reply.status === 'ok') {
@@ -238,11 +313,88 @@ export async function sendText(conversation, text) {
   }
 }
 
+/**
+ * Encrypts a file in the browser, uploads the ciphertext, then sends a message carrying its key.
+ * The server only ever receives the encrypted bytes (docs/DESIGN.md §8).
+ */
+export async function sendFile(conversation, file, caption = '') {
+  // Large photos usually shrink when re-encoded, so they get some headroom before that.
+  if (file.size > (isInlineImage(file.type) ? 4 : 1) * MAX_FILE_BYTES) throw new Error(`Files can be up to ${formatBytes(MAX_FILE_BYTES)}`);
+  const tempId = `${Date.now()}-${Math.random()}`;
+  const previewUrl = isInlineImage(file.type) ? URL.createObjectURL(file) : null;
+  store.dispatch(pendingAdded({
+    conversation, tempId, text: caption, file: { name: file.name, previewUrl },
+  }));
+  try {
+    const sodium = await loadSodium();
+    if (!loaded.has(conversation)) await loadHistory(conversation);
+    const prepared = await prepareFile(file);
+    if (prepared.bytes.length > MAX_FILE_BYTES) throw new Error(`Files can be up to ${formatBytes(MAX_FILE_BYTES)}`);
+    const { key, ciphertext, id } = encryptFile(sodium, prepared.bytes);
+    await api.post('/files', new Blob([ciphertext]), { params: { conversation }, headers: { 'Content-Type': 'application/octet-stream' } });
+    // The sender already has the plaintext: no need to download and decrypt it again.
+    fileUrls.set(id, Promise.resolve(URL.createObjectURL(new Blob([prepared.bytes], { type: isInlineImage(prepared.mime) ? prepared.mime : 'application/octet-stream' }))));
+    const { bytes, ...meta } = prepared;
+    const payload = {
+      type: 'file', file: { ...meta, id, size: ciphertext.length, bytes: bytes.length, key },
+    };
+    if (caption) payload.text = caption;
+    await sendPayload(conversation, payload, [{ id, size: ciphertext.length }]);
+  } finally {
+    store.dispatch(pendingRemoved({ conversation, tempId }));
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }
+}
+
+/**
+ * The decrypted file of a message, as a blob: URL. The download is checked against the hash in the
+ * signed message before it is decrypted; a file the server altered or swapped fails here.
+ */
+export function openFile(file) {
+  if (!fileUrls.has(file.id)) {
+    const request = (async () => {
+      const known = fileKeys.get(file.id);
+      if (!known) throw new Error('this file\'s key is unavailable');
+      const sodium = await loadSodium();
+      const { data } = await api.get(`/files/${file.id}`, { responseType: 'arraybuffer' });
+      const bytes = decryptFile(sodium, known.key, new Uint8Array(data), file.id);
+      return URL.createObjectURL(new Blob([bytes], { type: isInlineImage(known.mime) ? known.mime : 'application/octet-stream' }));
+    })();
+    fileUrls.set(file.id, request);
+    request.catch(() => fileUrls.delete(file.id));
+  }
+  return fileUrls.get(file.id);
+}
+
 const sendEvent = (conversation, event) => sendPayload(conversation, { type: 'event', event }).catch(() => {});
+
+async function signDeletion(fields) {
+  const sodium = await loadSodium();
+  const body = {
+    user: me.id, at: new Date().toISOString(), keyVersion: myVersion(), ...fields,
+  };
+  return signObject(sodium, body, fromB64(sodium, myKeys().signing.privateKey));
+}
+
+/** Deletes one of my messages: a signed statement; the server erases the content. */
+export async function deleteMessage(conversation, seq) {
+  const record = (store.getState().chat.messages[conversation] || []).find((r) => r.seq === seq);
+  if (!record || record.sender !== me.id) throw new Error('You can only delete your own messages');
+  const deletion = await signDeletion({
+    type: 'delete', conversation, seq, hash: record.hash,
+  });
+  const { data } = await api.post('/messages/delete', { deletion });
+  await processEnvelopes(conversation, [data]);
+}
+
+/** The signed request that deletes the account and tombstones every message it sent. */
+export const accountDeletion = () => signDeletion({ type: 'account-deleted' });
 
 export async function openConversation(conversation) {
   store.dispatch(conversationOpened(conversation));
   if (!loaded.has(conversation)) await loadHistory(conversation);
+  await loadReceipts(conversation).catch(() => {});
+  markRead(conversation);
 }
 
 export function startDirectChat(user) {
@@ -398,3 +550,70 @@ export async function rotateRoom(roomId) {
 export const onRoomChanged = (change) => (change.type === 'deleted'
   ? store.dispatch(contactRemoved(`room:${change.room}`))
   : refreshRoom(change.room));
+
+// ---- read receipts (docs/DESIGN.md §6.4) ------------------------------------------------------
+
+const receiptsOn = () => store.getState().session.user?.receiptsEnabled === true;
+
+/** A receipt is only trusted if the reader signed it with their key. */
+export async function receiveReceipt(receipt) {
+  const sodium = await loadSodium();
+  let verified = false;
+  try {
+    const history = await keysOf(receipt.reader, { minVersion: receipt.keyVersion });
+    verified = history.ok && verifyObject(sodium, receipt, history.entries[receipt.keyVersion - 1]?.signingKey);
+  } catch {
+    verified = false;
+  }
+  store.dispatch(receiptReceived({
+    conversation: receipt.conversation, reader: receipt.reader, upToSeq: receipt.upToSeq, at: receipt.at, verified,
+  }));
+}
+
+export async function loadReceipts(conversation) {
+  if (!receiptsOn()) return;
+  const { data } = await api.get('/messages/receipts', { params: { conversation } });
+  await Promise.all(data.filter((r) => r.reader !== me.id).map(receiveReceipt));
+}
+
+/**
+ * Tells the others I've read up to the latest message, but only when receipts are on, the
+ * conversation is open on screen, and there's something new from someone else.
+ */
+export async function markRead(conversation) {
+  if (!me || !receiptsOn() || document.visibilityState !== 'visible') return;
+  const { active, messages } = store.getState().chat;
+  if (active !== conversation) return;
+  const records = messages[conversation] || [];
+  const latest = records[records.length - 1];
+  if (!latest || latest.seq <= (receiptSent.get(conversation) || 0)) return;
+  if (!records.some((r) => r.sender !== me.id && r.seq > (receiptSent.get(conversation) || 0))) return;
+  receiptSent.set(conversation, latest.seq);
+  const sodium = await loadSodium();
+  const receipt = signObject(sodium, {
+    type: 'read', reader: me.id, conversation, upToSeq: latest.seq, upToHash: latest.hash, at: new Date().toISOString(), keyVersion: myVersion(),
+  }, fromB64(sodium, myKeys().signing.privateKey));
+  await emitWithAck('receipt', receipt);
+}
+
+// ---- key changes (docs/DESIGN.md §5.2) -------------------------------------------------------
+
+let onOwnKeysChanged = () => {};
+// The key version this browser is creating right now. The server announces a change over the socket
+// before its HTTP reply arrives, so without this the browser would lock itself out of its own rotation.
+let expectedOwnVersion = 0;
+
+export function expectOwnKeyVersion(version) {
+  expectedOwnVersion = version;
+}
+
+/** Called when this account's keys change on another device: this browser must unlock again. */
+export function setOwnKeysChangedHandler(handler) {
+  onOwnKeysChanged = handler;
+}
+
+export function receiveKeysChanged({ user, version }) {
+  histories.delete(user);
+  store.dispatch(keysChanged({ user, version }));
+  if (me && user === me.id && version > Math.max(currentKeys()?.signing.version || 0, expectedOwnVersion)) onOwnKeysChanged();
+}

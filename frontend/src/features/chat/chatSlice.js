@@ -13,6 +13,9 @@ const initialState = {
   active: null,
   messages: {},
   pending: {}, // conversation -> [{ tempId, text }]
+  receipts: {}, // conversation -> readerId -> { upToSeq, at, verified }
+  keyChanges: {}, // userId -> latest key version announced; key views re-read histories when it moves
+  log: null, // latest transparency-log check: { ok, problems, head, at }
 };
 
 const touch = (state, conversation) => {
@@ -62,11 +65,25 @@ const chat = createSlice({
       }
       if (live) touch(state, conversation);
     },
-    pendingAdded(state, { payload: { conversation, tempId, text } }) {
-      state.pending[conversation] = [...(state.pending[conversation] || []), { tempId, text }];
+    pendingAdded(state, { payload: { conversation, tempId, text, file } }) {
+      state.pending[conversation] = [...(state.pending[conversation] || []), { tempId, text, ...(file ? { file } : {}) }];
     },
     pendingRemoved(state, { payload: { conversation, tempId } }) {
       state.pending[conversation] = (state.pending[conversation] || []).filter((p) => p.tempId !== tempId);
+    },
+    receiptReceived(state, { payload: { conversation, reader, upToSeq, at, verified } }) {
+      const byReader = state.receipts[conversation] || {};
+      if (!byReader[reader] || byReader[reader].upToSeq < upToSeq) {
+        state.receipts[conversation] = { ...byReader, [reader]: { upToSeq, at, verified } };
+      }
+    },
+    keysChanged(state, { payload: { user, version } }) {
+      state.keyChanges[user] = version;
+    },
+    logChecked(state, { payload }) {
+      // A failure sticks until the page reloads: a later clean check doesn't undo evidence of tampering.
+      if (state.log && !state.log.ok && payload.ok) return;
+      state.log = payload;
     },
     chatReset: () => initialState,
   },
@@ -74,6 +91,6 @@ const chat = createSlice({
 
 export const {
   contactUpserted, contactRemoved, presenceChanged, conversationOpened, conversationClosed,
-  recordsReceived, pendingAdded, pendingRemoved, chatReset,
+  recordsReceived, pendingAdded, pendingRemoved, receiptReceived, keysChanged, logChecked, chatReset,
 } = chat.actions;
 export default chat.reducer;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { FaMagnifyingGlass, FaCircleUser, FaUsers } from 'react-icons/fa6';
+import { FaMagnifyingGlass, FaUsers } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import SBstyle from './Sidebar.module.css';
 import api from '../../lib/api';
@@ -15,23 +15,28 @@ const timeLabel = (iso) => {
     : date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 };
 
+// No avatars: accounts are anonymous, so there is no picture to show. A dot before the name shows
+// presence (its label keeps it available to screen readers); rooms get a small group icon instead.
 const ContactRow = ({
-  name, kind, status, preview, at, unread, active, onClick,
+  name, kind, online, preview, at, unread, active, onClick,
 }) => {
-  const Icon = kind === 'room' ? FaUsers : FaCircleUser;
+  const presence = online ? 'Online' : 'Offline';
   return (
     <li>
-      <button type="button" className={`${SBstyle.row} ${active ? SBstyle.active : ''}`} onClick={onClick}>
-        <Icon size={34} className={SBstyle.avatar} aria-hidden="true" />
-        <span className={SBstyle.rowText}>
-          <span className={SBstyle.topLine}>
-            <span className={SBstyle.name}>{name}</span>
-            {at && <span className={SBstyle.time}>{at}</span>}
-          </span>
-          {preview !== undefined && <span className={SBstyle.preview}>{preview}</span>}
-          {status && <span className={`${SBstyle.status} ${status === 'Online' ? SBstyle.online : ''}`}>{status}</span>}
+      <button type="button" className={`${SBstyle.row} ${active ? SBstyle.active : ''} ${unread ? SBstyle.hasUnread : ''}`} onClick={onClick}>
+        <span className={SBstyle.topLine}>
+          {kind === 'room'
+            ? <FaUsers className={SBstyle.roomIcon} role="img" aria-label="Room" />
+            : <span className={`${SBstyle.presence} ${online ? SBstyle.online : ''}`} role="img" aria-label={presence} title={presence} />}
+          <span className={SBstyle.name}>{name}</span>
+          {at && <span className={SBstyle.time}>{at}</span>}
         </span>
-        {unread && <span className={SBstyle.unread} aria-label="Unread messages" />}
+        {preview !== undefined && (
+          <span className={SBstyle.bottomLine}>
+            <span className={SBstyle.preview}>{preview}</span>
+            {unread && <span className={SBstyle.unread} aria-label="Unread messages" />}
+          </span>
+        )}
       </button>
     </li>
   );
@@ -71,7 +76,7 @@ const SideBar = () => {
   if (results) {
     list = results.length === 0
       ? <p className={SBstyle.empty}>No users found</p>
-      : results.map((found) => <ContactRow key={found.id} name={found.username} kind="user" onClick={() => selectResult(found)} />);
+      : results.map((found) => <ContactRow key={found.id} name={found.username} kind="user" preview="Start a conversation" onClick={() => selectResult(found)} />);
   } else if (order.length === 0) {
     list = <p className={SBstyle.empty}>Search for someone by username, or create a room from the menu.</p>;
   } else {
@@ -82,8 +87,8 @@ const SideBar = () => {
           key={key}
           name={contact.name}
           kind={contact.kind}
-          preview={contact.preview ?? (contact.kind === 'room' ? 'Room' : (contact.online ? 'Online' : 'Offline'))}
-          status={contact.preview !== undefined && contact.kind === 'user' ? (contact.online ? 'Online' : 'Offline') : null}
+          preview={contact.preview ?? (contact.kind === 'room' ? 'Room' : 'No messages yet')}
+          online={!!contact.online}
           at={timeLabel(contact.previewAt)}
           unread={contact.unread}
           active={key === active}

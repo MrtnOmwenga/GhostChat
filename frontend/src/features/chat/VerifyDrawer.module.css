@@ -1,0 +1,117 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: min(100%, 26rem);
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 2rem;
+  background: var(--surface);
+  box-shadow: -16px 0 48px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.ok { background: rgba(91, 214, 140, 0.12); color: var(--online); }
+.partial { background: rgba(242, 193, 78, 0.12); color: #F2C14E; }
+.bad { background: rgba(255, 122, 122, 0.12); color: var(--danger); }
+
+.facts {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.row dt {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.row code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.problems {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem 0.75rem 1.75rem;
+  border-radius: 10px;
+  background: rgba(255, 122, 122, 0.08);
+  color: var(--danger);
+}
+
+.raw {
+  margin-top: 1.25rem;
+}
+
+.raw summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.raw pre {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.danger {
+  width: 100%;
+  margin-top: 1.5rem;
+  height: 2.75rem;
+  border: 1.5px solid var(--danger);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .backdrop {
+    align-items: flex-end;
+  }
+
+  .drawer {
+    width: 100%;
+    height: auto;
+    max-height: 85svh;
+    border-radius: 18px 18px 0 0;
+  }
+}

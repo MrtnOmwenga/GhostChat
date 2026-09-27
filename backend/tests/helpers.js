@@ -9,6 +9,7 @@ const { createRealtime } = require('../src/realtime');
 const { MemoryPresence } = require('../src/presence');
 const { didFromSigningKey, keyCommitment, objectHash } = require('../src/crypto');
 
+
 /** Starts the full server (HTTP + Socket.IO) on a random port against an in-memory MongoDB. */
 async function startServer() {
   const mongo = await MongoMemoryServer.create();
@@ -24,7 +25,8 @@ async function startServer() {
     app,
     url,
     async reset() {
-      await Promise.all(Object.values(mongoose.connection.collections).map((c) => c.deleteMany({})));
+      // Every collection, including GridFS's, which has no mongoose model.
+      await Promise.all((await mongoose.connection.db.collections()).map((c) => c.deleteMany({})));
     },
     async stop() {
       realtime.close();
@@ -42,6 +44,24 @@ const randomB64 = (n) => b64(crypto.randomBytes(n));
 function keyPair(type) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync(type);
   return { publicKey: publicKey.export({ format: 'jwk' }).x, privateKey };
+}
+
+/** A signed rotation or reset entry following `previous`. */
+function nextEntry(previous, { type, signWith, signingKey, nextKeyCommitment }) {
+  const entry = {
+    type,
+    username: previous.username,
+    did: previous.did,
+    version: previous.version + 1,
+    signingKey,
+    encryptionKey: keyPair('x25519').publicKey,
+    nextKeyCommitment,
+    prev: objectHash(previous),
+    reason: type === 'rotate' ? 'routine' : 'lost phrase',
+    createdAt: new Date().toISOString(),
+  };
+  entry.signature = b64(crypto.sign(null, Buffer.from(objectHash(entry)), signWith));
+  return entry;
 }
 
 /**
@@ -66,6 +86,7 @@ function makeAccount(username) {
   entry.signature = b64(crypto.sign(null, Buffer.from(objectHash(entry)), signing.privateKey));
   return {
     signing,
+    next,
     entry,
     body: {
       username, salt: randomB64(16), authKey: randomB64(32), vault: { nonce: randomB64(24), ciphertext: randomB64(80) }, keyEntry: entry,
@@ -114,6 +135,20 @@ function envelope(from, {
 
 const sealedKey = () => ({ keyVersion: 1, sealed: randomB64(80) });
 
+/** A read receipt signed by `from`. */
+const signedReceipt = (from, conversation, env) => {
+  const body = {
+    type: 'read', reader: from.user.id, conversation, upToSeq: env.seq, upToHash: env.hash, at: new Date().toISOString(), keyVersion: 1,
+  };
+  return { ...body, signature: b64(crypto.sign(null, Buffer.from(objectHash(body)), from.account.signing.privateKey)) };
+};
+
+/** A deletion signed by `from` (docs/DESIGN.md §6.3). */
+function signedDeletion(from, fields) {
+  const body = { user: from.user.id, at: new Date().toISOString(), keyVersion: 1, ...fields };
+  return { ...body, signature: b64(crypto.sign(null, Buffer.from(objectHash(body)), from.account.signing.privateKey)) };
+}
+
 function connectSocket(url, cookie) {
   return new Promise((resolve, reject) => {
     const socket = connect(url, { extraHeaders: cookie ? { cookie } : {}, reconnection: false, forceNew: true });
@@ -126,5 +161,5 @@ const nextEvent = (socket, event) => new Promise((resolve) => { socket.once(even
 const emitAck = (socket, event, payload) => new Promise((resolve) => { socket.emit(event, payload, resolve); });
 
 module.exports = {
-  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey,
+  startServer, signUp, makeAccount, randomB64, nextEntry, keyPair, keyCommitment, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, signedDeletion, signedReceipt,
 };

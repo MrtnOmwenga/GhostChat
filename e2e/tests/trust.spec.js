@@ -1,0 +1,72 @@
+const { test, expect } = require('./fixtures');
+const {
+  twoUsers, openChatWith, send, conversation, delivered,
+} = require('./helpers');
+
+const shield = (page, seq) => conversation(page).getByRole('button', { name: new RegExp(`^Verify message ${seq}:`) });
+
+async function chatOfThree(browser) {
+  const [ada, grace] = await twoUsers(browser);
+  await openChatWith(ada.page, grace.name);
+  for (const text of ['one', 'two', 'three']) {
+    // eslint-disable-next-line no-await-in-loop
+    await send(ada.page, text);
+    // eslint-disable-next-line no-await-in-loop
+    await expect(conversation(ada.page).getByRole('listitem').filter({ hasText: text }).filter({ hasNotText: 'Sending' })).toBeVisible();
+  }
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(conversation(grace.page).getByText('three', { exact: true })).toBeVisible();
+  return { ada, grace };
+}
+
+const conversationId = async (page) => page.evaluate(async () => {
+  const response = await fetch('/api/messages/conversations', { credentials: 'include' });
+  return (await response.json())[0].conversation;
+});
+
+test('every message carries a verified shield; the drawer shows hash, link and signature', async ({ browser }) => {
+  const { grace } = await chatOfThree(browser);
+  await expect(shield(grace.page, 2)).toHaveAttribute('aria-label', /Signature and chain link verified/);
+  await shield(grace.page, 2).click();
+  const drawer = grace.page.getByRole('dialog', { name: 'Message #2' });
+  await expect(drawer.getByText('Links to #1 ✓')).toBeVisible();
+  await expect(drawer.getByText(/Ed25519 signature matches/)).toBeVisible();
+  await drawer.getByText('Raw envelope').click();
+  await expect(drawer.locator('pre')).toContainText('"ciphertext"');
+  await expect(drawer.getByRole('button', { name: 'Delete message' })).toHaveCount(0); // not grace's message
+});
+
+test('the author deletes a message; everyone sees a verified, signed deletion', async ({ browser }) => {
+  const { ada, grace } = await chatOfThree(browser);
+  await shield(ada.page, 2).click();
+  ada.page.once('dialog', (dialog) => dialog.accept());
+  await ada.page.getByRole('dialog', { name: 'Message #2' }).getByRole('button', { name: 'Delete message' }).click();
+
+  await expect(delivered(grace.page, 'Message deleted')).toBeVisible();
+  await expect(conversation(grace.page).getByText('two', { exact: true })).toHaveCount(0);
+  await expect(shield(grace.page, 2)).toHaveAttribute('aria-label', /Deletion signed by the author/);
+  await expect(shield(grace.page, 3)).toHaveAttribute('aria-label', /Signature and chain link verified/);
+});
+
+test('read receipts: off by default, signed and live when both people turn them on', async ({ browser }) => {
+  const [ada, grace] = await require('./helpers').twoUsers(browser);
+  const turnOn = async (page) => {
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await page.getByRole('switch', { name: /Read receipts: Off/ }).click();
+    await expect(page.getByText(/Read receipts on/)).toBeVisible();
+    await page.keyboard.press('Escape');
+  };
+  await openChatWith(ada.page, grace.name);
+  await send(ada.page, 'Did you read this?');
+  const mine = conversation(ada.page).getByRole('listitem').filter({ hasText: 'Did you read this?' }).filter({ hasNotText: 'Sending' });
+  await expect(mine.getByLabel(/Delivered|Read by/)).toHaveCount(0); // receipts are off
+
+  await turnOn(ada.page);
+  await expect(mine.getByLabel('Delivered')).toBeVisible();
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(mine.getByLabel('Delivered')).toBeVisible(); // grace's receipts are still off
+
+  await turnOn(grace.page);
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(mine.getByLabel(`Read by ${grace.name}`)).toBeVisible();
+});

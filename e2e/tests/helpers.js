@@ -45,8 +45,10 @@ async function twoUsers(browser, options = {}) {
     const page = await context.newPage();
     const name = uniqueName(prefix);
     // eslint-disable-next-line no-await-in-loop
-    await signUp(page, name);
-    users.push({ page, name, context });
+    const phrase = await signUp(page, name);
+    users.push({
+      page, name, context, phrase,
+    });
   }
   return users;
 }
@@ -58,12 +60,15 @@ async function openChatWith(page, username) {
 }
 
 async function send(page, text) {
-  await page.getByLabel('Message').fill(text);
-  await page.getByLabel('Message').press('Enter');
+  await page.getByLabel('Message', { exact: true }).fill(text);
+  await page.getByLabel('Message', { exact: true }).press('Enter');
 }
 
 const conversation = (page) => page.getByRole('region', { name: /Conversation with/ });
 
+/** A message that has landed (not the momentary "Sending…" copy shown while it's in flight). */
+const delivered = (page, text) => conversation(page).getByRole('listitem').filter({ hasText: text }).filter({ hasNotText: 'Sending' });
+
 module.exports = {
-  STRONG_PASSWORD, uniqueName, signUp, signIn, twoUsers, openChatWith, send, conversation,
+  STRONG_PASSWORD, uniqueName, signUp, signIn, twoUsers, openChatWith, send, conversation, delivered,
 };

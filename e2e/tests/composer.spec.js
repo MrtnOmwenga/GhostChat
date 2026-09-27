@@ -11,8 +11,8 @@ test('emoji from the picker are inserted and emoji-only messages render large', 
   const picker = ada.page.getByRole('dialog', { name: 'Emoji picker' });
   await picker.getByRole('combobox', { name: 'Search' }).fill('fire');
   await picker.getByRole('option', { name: /^🔥/ }).first().click();
-  await expect(ada.page.getByLabel('Message')).toHaveValue('🔥');
-  await ada.page.getByLabel('Message').press('Enter');
+  await expect(ada.page.getByLabel('Message', { exact: true })).toHaveValue('🔥');
+  await ada.page.getByLabel('Message', { exact: true }).press('Enter');
 
   const delivered = conversation(ada.page).getByRole('listitem').filter({ hasText: '🔥' }).filter({ hasNotText: 'Sending' });
   await expect(delivered).toBeVisible();
@@ -23,7 +23,7 @@ test('emoji from the picker are inserted and emoji-only messages render large', 
 test('Shift+Enter adds a line; Enter sends; line breaks arrive intact', async ({ browser }) => {
   const [ada, grace] = await twoUsers(browser);
   await openChatWith(ada.page, grace.name);
-  const box = ada.page.getByLabel('Message');
+  const box = ada.page.getByLabel('Message', { exact: true });
   await box.pressSequentially('Line one');
   await box.press('Shift+Enter');
   await box.pressSequentially('Line two');
