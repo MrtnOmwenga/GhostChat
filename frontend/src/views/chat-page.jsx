@@ -36,7 +36,11 @@ const ChatPage = () => {
         const { data: me } = await api.get('/auth/me');
         if (cancelled) return;
         dispatch(signedIn(me));
-        const { data: rooms } = await api.get('/rooms/mine');
+        const [{ data: people }, { data: rooms }] = await Promise.all([
+          api.get('/messages/conversations'),
+          api.get('/rooms/mine'),
+        ]);
+        people.forEach((person) => dispatch(contactAdded({ id: person.id, name: person.username, kind: 'user' })));
         rooms.forEach((room) => dispatch(contactAdded({ id: room.id, name: room.name, kind: 'room' })));
         connect();
       } catch {

@@ -6,3 +6,5 @@ coverage/
 !.env.example
 .DS_Store
 npm-debug.log*
+e2e/test-results/
+e2e/playwright-report/

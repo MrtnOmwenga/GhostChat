@@ -40,6 +40,20 @@ test('a direct message reaches the recipient, is stored, and names the real send
   expect(history.body.map((m) => m.text)).toEqual(['hello']);
 });
 
+test('conversations list the people you have messaged, most recent first', async () => {
+  const ada = await signUp(server.app, 'ada');
+  const grace = await signUp(server.app, 'grace');
+  const alan = await signUp(server.app, 'alan');
+  const adaSocket = await connectAs(ada.cookie);
+  const alanSocket = await connectAs(alan.cookie);
+  await emitAck(adaSocket, 'message', { to: grace.user.id, text: 'first' });
+  await emitAck(alanSocket, 'message', { to: ada.user.id, text: 'second' });
+
+  const res = await ada.agent.get('/api/messages/conversations').expect(200);
+  expect(res.body.map((u) => u.username)).toEqual(['alan', 'grace']);
+  expect(JSON.stringify(res.body)).not.toMatch(/password/i);
+});
+
 test('messages to unknown users and invalid payloads are rejected', async () => {
   const ada = await signUp(server.app, 'ada');
   const socket = await connectAs(ada.cookie);
@@ -103,4 +117,22 @@ test('message sending is rate limited per connection', async () => {
     results.push(await emitAck(socket, 'message', { to: grace.user.id, text: `m${i}` }));
   }
   expect(results.filter((r) => r.error === 'Slow down')).toHaveLength(2);
+});
+
+test('deleting an account removes its messages and closes its connections', async () => {
+  const ada = await signUp(server.app, 'ada');
+  const grace = await signUp(server.app, 'grace');
+  const room = (await ada.agent.post('/api/rooms').send({ name: 'Solo', password: 'difference' })).body;
+  const adaSocket = await connectAs(ada.cookie);
+  await emitAck(adaSocket, 'message', { to: grace.user.id, text: 'soon gone' });
+  await emitAck(adaSocket, 'message', { room: room.id, text: 'also gone' });
+
+  const disconnected = nextEvent(adaSocket, 'disconnect');
+  await ada.agent.delete('/api/users/me').expect(204);
+  await disconnected;
+
+  const history = await grace.agent.get(`/api/messages?with=${ada.user.id}`).expect(200);
+  expect(history.body).toEqual([]);
+  // Ada was the room's only member, so the room is gone too.
+  await grace.agent.post('/api/rooms/join').send({ name: 'Solo', password: 'difference' }).expect(401);
 });

@@ -6,6 +6,40 @@ import disposableImage from '../assets/home_image3.jpg';
 import roomsImage from '../assets/home_image2.jpeg';
 import Nav from '../components/nav.component';
 
+const FEATURES = [
+  { title: 'Real-time messaging', text: 'Messages arrive instantly over a WebSocket, one to one or in rooms.' },
+  { title: 'Know who is around', text: 'Contacts show as online while they have GhostChat open, in any tab.' },
+  { title: 'History that stays', text: 'Close the tab or reload: the last 100 messages of each conversation are waiting.' },
+  { title: 'Built to be hard to abuse', text: 'Sessions in httpOnly cookies, hashed passwords, and rate limits on sign-in and messages.' },
+];
+
+const FAQ = [
+  {
+    question: 'How anonymous is GhostChat really?',
+    answer: 'Your account is a username and a password: no email, phone number or real name. Nothing ties it to you unless you put it there.',
+  },
+  {
+    question: 'Can the server read my messages?',
+    answer: 'Today, yes: messages are stored so your history survives a reload, and they travel over HTTPS. End-to-end encryption is next, after which the server will only hold text it cannot read.',
+  },
+  {
+    question: 'What happens when I delete my account?',
+    answer: 'Your account, every message you sent and your room memberships are deleted, and you are signed out everywhere. Rooms you were alone in go too; rooms with other members pass to one of them.',
+  },
+  {
+    question: 'How are rooms protected?',
+    answer: 'Joining a room takes its exact name and password. Only members can read its history or post in it, and membership is checked on every message.',
+  },
+  {
+    question: 'Is my history kept forever?',
+    answer: 'Messages stay until you delete your account. Each conversation loads its latest 100 messages.',
+  },
+  {
+    question: 'Do I need to provide personal info?',
+    answer: 'No. Pick any username that isn\'t taken and start talking.',
+  },
+];
+
 const Home = () => (
   <div className={style.home} id="top">
     <Nav />
@@ -31,7 +65,7 @@ const Home = () => (
             <h2>Disposable accounts, vanish without a trace</h2>
             <p>
               Sign up with a username and a password, nothing else. When you&apos;re done, delete the
-              account and it&apos;s gone.
+              account: it goes, and so does every message you sent.
             </p>
           </div>
           <img src={disposableImage} alt="" className={style.featureImage} loading="lazy" />
@@ -40,32 +74,32 @@ const Home = () => (
           <div className={style.featureText}>
             <h2>Private, password-protected rooms</h2>
             <p>
-              Create a room, share its name and password with the people you want in it, and talk in a
-              dark, quiet interface built for conversation.
+              Create a room, share its name and password with the people you want in it, and talk.
+              Only members can read or post, and everyone sees when someone new joins.
             </p>
           </div>
           <img src={roomsImage} alt="" className={style.featureImage} loading="lazy" />
         </article>
+        <ul className={style.cards}>
+          {FEATURES.map(({ title, text }) => (
+            <li key={title} className={style.card}>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section id="faq" className={style.faq}>
         <h2>Mysterious queries, unveiled answers</h2>
-        <div className={style.faqGrid}>
-          <div>
-            <h3>How anonymous is GhostChat really?</h3>
-            <p>
-              Your account is just a username and a password: no email, phone number or real name.
-              Messages travel over HTTPS; end-to-end encryption is on the way.
-            </p>
-          </div>
-          <div>
-            <h3>Do I need to provide personal info?</h3>
-            <p>
-              No. Pick any username that isn&apos;t taken and start talking. Nothing ties it to you
-              unless you put it there.
-            </p>
-          </div>
-        </div>
+        <dl className={style.faqGrid}>
+          {FAQ.map(({ question, answer }) => (
+            <div key={question}>
+              <dt>{question}</dt>
+              <dd>{answer}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className={style.join}>

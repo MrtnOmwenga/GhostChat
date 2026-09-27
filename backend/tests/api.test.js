@@ -113,6 +113,15 @@ describe('rooms', () => {
     await request(server.app).post('/api/rooms/join').send({ name: 'Engine', password: 'difference' }).expect(401);
   });
 
+  test("a deleted creator's room passes to the next member", async () => {
+    const { agent: ada } = await signUp(server.app, 'ada');
+    const { agent: grace } = await signUp(server.app, 'grace');
+    const room = await ada.post('/api/rooms').send({ name: 'Engine', password: 'difference' }).expect(201);
+    await grace.post('/api/rooms/join').send({ name: 'Engine', password: 'difference' });
+    await ada.delete('/api/users/me').expect(204);
+    await grace.delete(`/api/rooms/${room.body.id}`).expect(204);
+  });
+
   test('only the creator can delete a room', async () => {
     const { agent: ada } = await signUp(server.app, 'ada');
     const { agent: grace } = await signUp(server.app, 'grace');

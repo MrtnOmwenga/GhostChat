@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const Room = require('../models/room');
+const Message = require('../models/message');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
 const { requireAuth, setSessionCookie, clearSessionCookie } = require('../auth');
@@ -30,9 +31,17 @@ router.patch('/me', async (req, res) => {
   res.json(user);
 });
 
+// Deleting an account removes everything that identifies the user: the account, every message
+// they sent (direct and in rooms), their room memberships, and rooms nobody else is in.
 router.delete('/me', async (req, res) => {
-  await User.deleteOne({ _id: req.user.id });
-  await Room.updateMany({ members: req.user.id }, { $pull: { members: req.user.id } });
+  const me = req.user.id;
+  await Message.deleteMany({ from: me });
+  await Room.updateMany({ members: me }, { $pull: { members: me } });
+  await Room.deleteMany({ members: { $size: 0 } });
+  // Rooms they created that still have members pass to the longest-standing remaining member.
+  await Room.updateMany({ creator: me }, [{ $set: { creator: { $arrayElemAt: ['$members', 0] } } }], { updatePipeline: true });
+  await User.deleteOne({ _id: me });
+  req.app.get('realtime')?.disconnectUser(me);
   clearSessionCookie(res);
   res.status(204).end();
 });

@@ -84,7 +84,13 @@ Tests:
 ```sh
 cd backend && npm test            # API + Socket.IO, against an in-memory MongoDB
 cd frontend && npm test           # chat state logic
+cd e2e && npm install && npx playwright install chromium && npm test   # the whole app in a browser
 ```
+
+The end-to-end suite (Playwright) starts the real server with the built frontend and an
+in-memory MongoDB, then drives it in Chromium: sign-up and sign-in, live direct messages between
+two browsers, unread markers and presence, history after a reload, rooms and join
+announcements, account deletion, the phone layout, and that no page scrolls sideways on a phone.
 
 The backend suite covers authentication and session tampering, that no response contains a
 password hash, users only being able to change themselves, room permissions, sender spoofing,
@@ -109,7 +115,7 @@ unauthenticated sockets, message delivery and storage, multi-tab presence, and r
 | `POST /api/auth/register`, `/login`, `/logout`; `GET /api/auth/me` | session |
 | `GET /api/users/search?q=` · `PATCH /api/users/me` · `DELETE /api/users/me` | users |
 | `GET /api/rooms/mine` · `POST /api/rooms` · `POST /api/rooms/join` · `DELETE /api/rooms/:id` | rooms |
-| `GET /api/messages?with=<userId>` or `?room=<roomId>` | history |
+| `GET /api/messages?with=<userId>` or `?room=<roomId>` · `GET /api/messages/conversations` | history |
 
 Socket events: `message` ({ to \| room, text } → ack with the stored message), `presence`
 (user ids → ack with those online; pushed on change), `announcement`.
