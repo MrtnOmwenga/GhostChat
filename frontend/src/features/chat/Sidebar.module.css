@@ -50,11 +50,11 @@
 }
 
 .row {
+  position: relative;
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem 0.7rem 0.9rem;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -67,32 +67,56 @@
 }
 
 .active {
-  background: rgba(137, 210, 220, 0.14);
+  background: rgba(137, 210, 220, 0.12);
 }
 
-.avatar {
-  flex: none;
-  color: var(--muted);
+.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6rem;
+  bottom: 0.6rem;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
-.rowText {
-  flex: 1;
+.topLine,
+.bottomLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
-  display: grid;
+}
+
+.presence {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.presence.online {
+  border-color: var(--online);
+  background: var(--online);
+  box-shadow: 0 0 0 3px rgba(91, 214, 140, 0.2);
+}
+
+.roomIcon {
+  flex: none;
+  width: 0.8rem;
+  color: var(--accent);
 }
 
 .name {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.topLine {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
 }
 
 .time {
@@ -102,25 +126,28 @@
 }
 
 .preview {
-  font-size: 0.82rem;
+  flex: 1;
+  min-width: 0;
+  padding-left: 1.05rem;
+  font-size: 0.84rem;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status {
-  font-size: 0.78rem;
-  color: var(--muted);
+.hasUnread .name,
+.hasUnread .preview {
+  color: var(--text);
 }
 
-.online {
-  color: var(--online);
+.hasUnread .time {
+  color: var(--accent);
 }
 
 .unread {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.55rem;
+  height: 0.55rem;
   border-radius: 50%;
   background: var(--accent);
   flex: none;
