@@ -32,6 +32,7 @@ export const signOut = async (dispatch, navigate) => {
 const ChatPage = () => {
   const user = useSelector((state) => state.session.user);
   const active = useSelector((state) => state.chat.active);
+  const logCheck = useSelector((state) => state.chat.log);
   const [menuOpen, setMenuOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [unlockedAt, setUnlockedAt] = useState(0);
@@ -102,6 +103,12 @@ const ChatPage = () => {
         <span className={CPstyle.me}>{user.username}</span>
         <IconButton icon={FaArrowRightFromBracket} label="Sign out" onClick={() => signOut(dispatch, navigate)} />
       </header>
+      {logCheck && !logCheck.ok && (
+        <p className={CPstyle.logAlert} role="alert">
+          {`Key transparency check failed: ${logCheck.problems[0]}. `}
+          <button type="button" onClick={() => navigate('/transparency')}>Details</button>
+        </p>
+      )}
       {/* On narrow screens only one pane shows: the list, or the open conversation. */}
       <div className={`${CPstyle.panes} ${active ? CPstyle.conversationOpen : ''}`}>
         <SideBar />

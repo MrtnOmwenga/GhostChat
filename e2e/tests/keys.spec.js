@@ -1,6 +1,7 @@
 const { test, expect } = require('./fixtures');
 const {
   twoUsers, openChatWith, send, conversation, signIn, STRONG_PASSWORD,
+  delivered,
 } = require('./helpers');
 
 async function openMyKeys(page) {
@@ -22,7 +23,7 @@ test('a rotation is shown to contacts as authorised; old and new messages both v
   await openChatWith(ada.page, grace.name);
   await send(ada.page, 'before rotation');
   await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
-  await expect(conversation(grace.page).getByText('before rotation')).toBeVisible();
+  await expect(delivered(grace.page, 'before rotation')).toBeVisible();
 
   await rotate(ada.page, ada.phrase);
   await expect(ada.page.getByText(/Keys rotated\. Your contacts/)).toBeVisible();
@@ -31,11 +32,11 @@ test('a rotation is shown to contacts as authorised; old and new messages both v
 
   await expect(conversation(grace.page).getByText(/Keys rotated on .* signed by their previous key ✓/)).toBeVisible();
   await send(ada.page, 'after rotation');
-  await expect(conversation(grace.page).getByText('after rotation')).toBeVisible();
+  await expect(delivered(grace.page, 'after rotation')).toBeVisible();
   const shields = conversation(grace.page).getByRole('button', { name: /^Verify message/ });
   for (const shield of await shields.all()) await expect(shield).toHaveAttribute('aria-label', /verified/);
   await send(grace.page, 'reply to the new key');
-  await expect(conversation(ada.page).getByText('reply to the new key')).toBeVisible();
+  await expect(delivered(ada.page, 'reply to the new key')).toBeVisible();
 });
 
 test('the wrong recovery phrase cannot rotate keys', async ({ browser }) => {

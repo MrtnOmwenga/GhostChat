@@ -1,6 +1,7 @@
 const { test, expect } = require('./fixtures');
 const {
   twoUsers, openChatWith, send, conversation, uniqueName, STRONG_PASSWORD,
+  delivered,
 } = require('./helpers');
 
 test('the database never contains message text or passwords', async ({ browser, databaseDump }) => {
@@ -10,16 +11,16 @@ test('the database never contains message text or passwords', async ({ browser, 
   await openChatWith(ada.page, grace.name);
   await send(ada.page, secrets[0]);
   await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
-  await expect(conversation(grace.page).getByText(secrets[0])).toBeVisible();
+  await expect(delivered(grace.page, secrets[0])).toBeVisible();
   await send(grace.page, secrets[1]);
-  await expect(conversation(ada.page).getByText(secrets[1])).toBeVisible();
+  await expect(delivered(ada.page, secrets[1])).toBeVisible();
 
   await ada.page.getByRole('button', { name: 'Menu' }).click();
   await ada.page.getByRole('button', { name: 'Create a room' }).click();
   await ada.page.getByLabel('Room name').fill(uniqueName('Room'));
   await ada.page.getByRole('button', { name: 'Create', exact: true }).click();
   await send(ada.page, secrets[2]);
-  await expect(conversation(ada.page).getByText(secrets[2])).toBeVisible();
+  await expect(delivered(ada.page, secrets[2])).toBeVisible();
 
   const dump = Object.values(await databaseDump()).join('\n');
   expect(dump).toContain('ciphertext');

@@ -15,6 +15,7 @@ const initialState = {
   pending: {}, // conversation -> [{ tempId, text }]
   receipts: {}, // conversation -> readerId -> { upToSeq, at, verified }
   keyChanges: {}, // userId -> latest key version announced; key views re-read histories when it moves
+  log: null, // latest transparency-log check: { ok, problems, head, at }
 };
 
 const touch = (state, conversation) => {
@@ -79,12 +80,17 @@ const chat = createSlice({
     keysChanged(state, { payload: { user, version } }) {
       state.keyChanges[user] = version;
     },
+    logChecked(state, { payload }) {
+      // A failure sticks until the page reloads: a later clean check doesn't undo evidence of tampering.
+      if (state.log && !state.log.ok && payload.ok) return;
+      state.log = payload;
+    },
     chatReset: () => initialState,
   },
 });
 
 export const {
   contactUpserted, contactRemoved, presenceChanged, conversationOpened, conversationClosed,
-  recordsReceived, pendingAdded, pendingRemoved, receiptReceived, keysChanged, chatReset,
+  recordsReceived, pendingAdded, pendingRemoved, receiptReceived, keysChanged, logChecked, chatReset,
 } = chat.actions;
 export default chat.reducer;

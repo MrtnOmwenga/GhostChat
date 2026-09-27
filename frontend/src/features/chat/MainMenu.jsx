@@ -45,6 +45,7 @@ const MainMenu = ({ ChangeView, close }) => {
         </button>
       </li>
       <li><button type="button" onClick={() => ChangeView('keys')}>Your keys</button></li>
+      <li><button type="button" onClick={() => navigate('/transparency')}>Transparency log</button></li>
       <li><button type="button" onClick={() => ChangeView('password')}>Change password</button></li>
       <li><button type="button" className={panel.danger} onClick={deleteAccount}>Delete account</button></li>
     </ul>

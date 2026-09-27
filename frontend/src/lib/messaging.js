@@ -7,6 +7,7 @@ import api from './api';
 import store from '../app/store';
 import { currentKeys } from './keystore';
 import { emitWithAck } from './socket';
+import { checkUserInLog, currentHead, checkPeerHead } from './log';
 import {
   sodium as loadSodium, verifyHistory, dmConversation, genesisHash, encryptPayload, decryptPayload,
   sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
@@ -49,7 +50,13 @@ export async function keysOf(userId, { minVersion = 0 } = {}) {
   const request = (async () => {
     const sodium = await loadSodium();
     const { data: entries } = await api.get(`/users/${userId}/keys`);
-    return { ...verifyHistory(sodium, entries), entries };
+    const history = verifyHistory(sodium, entries);
+    // A key history the transparency log doesn't vouch for could be one the server made up.
+    const log = await checkUserInLog(userId, entries).catch(() => ({ problems: ['the transparency log could not be checked'], paths: [] }));
+    const problems = [...history.problems, ...log.problems];
+    return {
+      ...history, ok: problems.length === 0, problems, entries, logPaths: log.paths, logHead: log.head,
+    };
   })();
   histories.set(userId, request);
   return request;
@@ -114,6 +121,12 @@ async function toRecord(sodium, env, previous) {
   } catch {
     problems.push("the sender's keys are unavailable");
   }
+  const splitView = await checkPeerHead(env.logHead).catch(() => null);
+  if (splitView) {
+    problems.push(splitView);
+    signature = false;
+  }
+
   try {
     const payload = decryptPayload(sodium, await payloadKey(sodium, env), env);
     const verification = { signature, link, problems };
@@ -214,6 +227,7 @@ async function buildEnvelope(sodium, conversation, payload) {
     senderKeyVersion: myVersion(),
     createdAt: new Date().toISOString(),
   };
+  if (currentHead()) body.logHead = currentHead();
   if (conversation.startsWith('room:')) {
     const room = rooms.get(roomIdOf(conversation));
     body.epoch = room.epoch;
