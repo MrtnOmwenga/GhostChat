@@ -1,6 +1,6 @@
 # GhostChat v3 design: end-to-end encryption, verifiable identity, tamper-evident history
 
-Status: **draft for review** · Author: Martin Omwenga · Last updated: 2026-09-27
+Status: **accepted** (decisions in §15) · Author: Martin Omwenga · Last updated: 2026-09-27
 
 GhostChat today (v2) authenticates every request and socket, but the server stores message text in
 plain form and is trusted completely. v3 removes that trust: the server relays and stores data it
@@ -79,7 +79,8 @@ stored on the server. Signing in on a new device downloads the vault and unlocks
 history and identity follow the user without the server ever holding a usable key. Changing the
 password re-encrypts the vault.
 
-**Recovery phrase (optional).** A 24-word BIP-39 mnemonic generated at sign-up. It derives a
+**Recovery phrase (mandatory).** A 24-word BIP-39 mnemonic generated at sign-up; the user must
+confirm it (re-entering three randomly chosen words) before the account is created. It derives a
 second copy of the vault key and seeds the pre-rotation keys (§5.2). Losing both the password and
 the phrase means losing the account's history: by design, nobody can recover it.
 
@@ -115,8 +116,8 @@ Every change to a user's keys is an entry in their **key history**, an append-on
   on 20 Oct: signed by their previous key ✓".
 - **Pre-rotation** (from KERI): each entry commits to the hash of the *next* signing key, which is
   derived from the recovery phrase and never stored in the vault. An attacker who steals the
-  current key cannot rotate to a key of their own, because it won't match the commitment. Without
-  a recovery phrase, pre-rotation is unavailable and the UI says so.
+  current key cannot rotate to a key of their own, because it won't match the commitment. Rotation
+  therefore asks for the recovery phrase.
 - **Reset** (all keys lost): a new entry not signed by the previous key, flagged as a reset.
   Contacts see a warning and are prompted to compare safety numbers.
 
@@ -132,9 +133,10 @@ Certificate Transparency design; WhatsApp shipped the same idea in 2023):
   different users different keys, or rewrites the log, fails these proofs.
 - Clients attach the hash of their latest tree head to messages, so two users who chat also
   cross-check that they see the same log (split-view detection).
-- **Optional anchoring:** once a day the root is timestamped on a public blockchain through
-  OpenTimestamps (free, no tokens). This is the one place a real chain adds value: independent
-  proof that the log wasn't rewritten after the fact.
+- **Anchoring:** once a day the root is timestamped on the Bitcoin blockchain through
+  OpenTimestamps (free, no tokens). This is the one place a real chain adds value: independent,
+  third-party proof that the log wasn't rewritten after the fact. The transparency page shows each
+  anchored root and verifies its timestamp proof once it is confirmed (a few hours later).
 
 ### 5.4 Safety numbers
 
@@ -171,10 +173,15 @@ signature from the pinned key raises a warning.
 ### 6.2 Hash chain and ordering
 
 Each conversation is a single hash chain. The server enforces it: a message is accepted only if
-its `prev` equals the current head. If two people send at the same moment, one gets `409 Conflict`
-with the new head, re-links and re-signs, and resends (like a rejected `git push`). Because the
-signature covers `seq` and `prev`, the server cannot reorder or splice messages, and a client that
-sees a gap or a broken link flags it.
+its `prev` equals the current head. Because the signature covers `seq` and `prev`, the server
+cannot reorder or splice messages, and a client that sees a gap or a broken link flags it.
+
+**Simultaneous sends are resolved automatically.** When two people send at the same moment, the
+server accepts one and answers the other with `409 Conflict` and the new head. The sender's client
+then, without any user action: applies the message that won, re-links its own message onto it,
+re-signs, and resends. Retries use a short jittered backoff; the message shows as *sending* until
+it lands. Only after repeated failures (for example, the conversation was deleted) does the UI
+show an error. Messages are displayed in chain order, so both people see the same sequence.
 
 ### 6.3 Deletion without breaking the chain
 
@@ -188,8 +195,9 @@ the user's messages.
 
 A receipt is a signed statement "*reader* has read *conversation* up to `seq` / `hash`", stored as
 the latest receipt per reader. The UI shows ticks; the Verify drawer shows the signed receipt.
-Receipts are **off by default** and can be enabled per user: they reveal activity, and this is an
-anonymity-first app.
+Receipts are **off by default** because they reveal activity; a user who turns them on sends
+receipts and sees other people's. When on, they work fully: ticks per message, updated live, and
+the signed receipt in the Verify drawer.
 
 ### 6.5 Sidebar previews
 
@@ -210,8 +218,9 @@ for the preview line, timestamp and unread count. The server never sees the prev
   until the pending rotation is done, so a departed member can't read anything new.
 - Joins, leaves, removals and epoch changes are signed events in the room's chain, so they appear
   in the chain view.
-- History for new members: off by default (they see messages from their join onward); a room can
-  opt in to sharing earlier epochs' keys with new members.
+- **Full history for new members:** when someone joins, the member admitting them (or the joiner,
+  using the invite secret) seals every earlier epoch key to them, so they can read the room's whole
+  history. Rotation on departure still stops former members reading anything new.
 
 ## 8. Attachments and emoji
 
@@ -308,16 +317,50 @@ shared `ui/`); the UI surfaces in §9.
 
 ## 14. Phases
 
-| Phase | Scope | Estimate |
+See [the phase plan](#phase-plan) below; each step is merged to `master` with CI green before the
+next starts.
+
+## 15. Decisions
+
+1. **Recovery phrase:** mandatory, confirmed at sign-up.
+2. **Room history:** new members always receive the full room history.
+3. **Read receipts:** off by default; fully functional when a user turns them on.
+4. **OpenTimestamps anchoring:** included, in phase B.
+5. **Simultaneous sends:** resolved automatically by the client (§6.2); the user never resends.
+6. **Signatures over deniability** (§11).
+7. **Migration:** none. v2 data is development-only and has no keys; v3 starts with an empty
+   database, and v2 accounts must be recreated.
+
+## Phase plan
+
+### Phase A: encryption foundations (~4.5 days)
+
+| Step | Scope | Done when |
 |---|---|---|
-| **A** | Password split and vault, keys, encrypted and signed DMs, rooms by ID with epochs and invite links, sidebar previews, emoji, frontend restructure | ~4 days |
-| **B** | Hash chains with tombstones, shield/Verify drawer/chain view, read receipts, key history with rotation and pre-rotation, transparency log and page, safety numbers, tamper demo | ~3–4 days |
-| **C** | Encrypted attachments and image thumbnails in MinIO/S3 | ~1.5 days |
-| **v4** | Double Ratchet (DMs) and MLS (rooms); sealed sender | later |
+| A1 | Frontend restructure into feature folders and shared `ui/`; side effects moved into store thunks; `crypto/` module on libsodium with test vectors | Existing tests pass; crypto vectors pass |
+| A2 | Accounts: salt endpoint, Argon2id password split, `authKey` login, mandatory recovery phrase with confirmation, encrypted vault, password change | Sign-up, sign-in on a fresh browser, and password change all recover the same keys; the server never receives the password |
+| A3 | Identity: `did:key`, key-history entry v1 with next-key commitment, key lookup endpoints | Contacts' keys are fetched and verified against their key history |
+| A4 | Encrypted, signed direct messages; sidebar previews decrypted in the browser | E2E test: after a conversation, the database contains none of the sent text |
+| A5 | Rooms by ID with display names, epochs and sealed keys, invite links, full history for new members, rotation on departure (sends blocked until done), key fingerprint in the header | A new member reads the whole history; a removed member can't decrypt new messages |
+| A6 | Emoji picker (lazy-loaded), large emoji-only bubbles, multi-line composer (Enter sends, Shift+Enter adds a line) | Covered by E2E tests |
 
-## 15. Open questions
+### Phase B: tamper evidence and verifiable identity (~4.5 days)
 
-1. Recovery phrase: offered at sign-up (skippable), or required?
-2. Room history for new members: off by default (current choice), or chosen per room at creation?
-3. Read receipts off by default (current choice): agreed?
-4. OpenTimestamps anchoring in phase B, or later?
+| Step | Scope | Done when |
+|---|---|---|
+| B1 | Hash chains: `seq`/`prev`, server enforcement, **automatic conflict resolution** in the client, signed tombstones, account-deletion record | A test sending from both sides simultaneously, repeatedly, yields one consistent chain with no user-visible error |
+| B2 | Trust UI: message shield, Verify drawer, chain view; `npm run tamper` demo | E2E test: tampering with a stored message makes the UI flag exactly that message |
+| B3 | Read receipts: signed, opt-in setting, live ticks | Receipts only flow between users who have them on |
+| B4 | Key history: rotation with pre-rotation (asks for the recovery phrase), reset flow, profile and contact key pages, safety numbers with QR, verified contacts | Rotation shows "signed by previous key ✓"; a reset shows the warning |
+| B5 | Transparency log: Merkle tree, signed tree heads, inclusion and consistency proofs verified in the browser, split-view check via `logHead`, transparency page, daily OpenTimestamps anchoring and proof verification | A forged or rewritten log fails verification in tests |
+
+### Phase C: encrypted attachments (~1.5 days)
+
+| Step | Scope | Done when |
+|---|---|---|
+| C1 | MinIO in Compose (S3 in production), pre-signed URLs for participants only, size limits, object deletion with the last reference | Non-participants can't obtain a URL |
+| C2 | Browser-side file encryption (`secretstream`), content-addressed upload, image thumbnails, attach/preview/download UI | E2E test: stored objects contain none of the uploaded bytes |
+
+### Later: v4
+
+Double Ratchet for direct messages and MLS for rooms (forward secrecy); sealed sender.
