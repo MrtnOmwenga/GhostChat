@@ -80,9 +80,30 @@ history and identity follow the user without the server ever holding a usable ke
 password re-encrypts the vault.
 
 **Recovery phrase (mandatory).** A 24-word BIP-39 mnemonic generated at sign-up; the user must
-confirm it (re-entering three randomly chosen words) before the account is created. It derives a
-second copy of the vault key and seeds the pre-rotation keys (§5.2). Losing both the password and
-the phrase means losing the account's history: by design, nobody can recover it.
+confirm it (re-entering three randomly chosen words) before the account is created. **Every key
+the account will ever use is derived from it**: key version *n* is
+`seed_keypair(BLAKE2b(key = BIP-39 seed, "ghostchat/signing/n"))`, and likewise for encryption.
+So the phrase alone can regenerate an account's keys, and it is what makes pre-rotation work
+(§5.2). The vault holds the current signing key and *every* encryption key the account has had, so
+history stays readable after rotations without the phrase.
+
+**Strong passwords.** The vault is only as strong as the password protecting it: whoever holds the
+database can guess passwords against it offline. Sign-up and password changes therefore require a
+zxcvbn score of at least 3 ("safely unguessable"), and Argon2id runs with 64 MiB of memory and 3
+passes (heavy enough to slow guessing, light enough for a phone). The check can only run in the
+browser, since the server never sees the password; a modified client could skip it, which would
+weaken only that user's own vault. The recovery phrase (256 bits) is not guessable.
+
+### 4.1 Devices and recovery
+
+| Situation | What happens |
+|---|---|
+| **New device** | Username and password → the browser derives `authKey` (signs in) and `vaultKey` → downloads the vault and unlocks it locally → full history is readable at once |
+| **Browser storage cleared, device lost** | Nothing is lost: the browser only caches keys; the vault is on the server |
+| **Password forgotten** | Username and recovery phrase → the browser regenerates the current keys from the phrase, proves possession by signing a server challenge with the current signing key, and sets a new password (new salt, `authKey` and vault) |
+| **Password and phrase both lost** | History cannot be recovered by anyone, including the server. The user can reset: new keys (a *reset* entry in the key history), and contacts see a warning |
+| **Server database lost** | Restored from backups like any service; backups contain only the encrypted vault |
+| **Device compromised** | Rotate keys from a trusted device (asks for the phrase); contacts see "rotated, signed by previous key ✓" |
 
 Unlocked keys live in memory and IndexedDB as non-extractable where WebCrypto allows.
 
@@ -91,7 +112,8 @@ Unlocked keys live in memory and IndexedDB as non-extractable where WebCrypto al
 ### 5.1 Identity
 
 A user's identity is their first Ed25519 key, expressed as a `did:key`. Usernames remain as
-display handles bound to the identity through the transparency log. Using `did:key` costs nothing
+display handles bound to the identity through the transparency log; for that reason they can't be
+changed in v3 (a rename would need its own signed log entry). Using `did:key` costs nothing
 now and lets a future decentralised-identity sign-in (a separate project) plug straight in.
 
 ### 5.2 Key history (sigchain) with pre-rotation
@@ -209,13 +231,17 @@ for the preview line, timestamp and unread count. The server never sees the prev
 - A room has a random 128-bit **room ID**; its name becomes a display name and no longer needs to
   be unique. Rooms are shown as `Night Owls · 7F3A-91C2`, the suffix being a fingerprint of the
   current room key, which all members can compare.
-- **Invite links:** `https://…/join/<roomId>#<inviteSecret>`. The part after `#` is never sent to
-  the server; it decrypts the room key for the joiner. An invite can be single-use or expiring, and
-  a room password can be required as a second factor.
+- **Invite links:** `https://…/join/<inviteId>#<inviteSecret>`. The part after `#` is never sent to
+  the server. The invite record on the server holds every epoch key of the room encrypted under a
+  key derived from the secret, which is how a joiner gets the full history. Invites can expire or
+  be limited in uses. Room passwords are dropped: the invite secret is stronger than any password,
+  and it is what carries the keys. Rotating the room key cancels outstanding invites, so an invite
+  can never carry out-of-date keys.
 - **Epochs:** the room key is replaced when a member leaves, is removed, or deletes their account.
   The member making the change (or, if they left, the next member to come online) generates the
   new key and seals it to each remaining member. The server refuses new messages for the room
-  until the pending rotation is done, so a departed member can't read anything new.
+  until the pending rotation is done, so a departed member can't read anything new; a client that
+  hits this does the rotation itself and then sends, without user action.
 - Joins, leaves, removals and epoch changes are signed events in the room's chain, so they appear
   in the chain view.
 - **Full history for new members:** when someone joins, the member admitting them (or the joiner,
@@ -317,8 +343,9 @@ shared `ui/`); the UI surfaces in §9.
 
 ## 14. Phases
 
-See [the phase plan](#phase-plan) below; each step is merged to `master` with CI green before the
-next starts.
+See [the phase plan](#phase-plan) below. Work happens on a `v3` branch with CI on every push; it
+merges to `master` at the end of each phase, so the public repository never shows a half-built
+version.
 
 ## 15. Decisions
 
@@ -338,7 +365,7 @@ next starts.
 | Step | Scope | Done when |
 |---|---|---|
 | A1 | Frontend restructure into feature folders and shared `ui/`; side effects moved into store thunks; `crypto/` module on libsodium with test vectors | Existing tests pass; crypto vectors pass |
-| A2 | Accounts: salt endpoint, Argon2id password split, `authKey` login, mandatory recovery phrase with confirmation, encrypted vault, password change | Sign-up, sign-in on a fresh browser, and password change all recover the same keys; the server never receives the password |
+| A2 | Accounts: salt endpoint, Argon2id password split, `authKey` login, strong-password check (zxcvbn ≥ 3), mandatory recovery phrase with confirmation, encrypted vault, password change, recovery with the phrase | Sign-up, sign-in on a fresh browser, password change and phrase recovery all yield the same keys; the server never receives the password |
 | A3 | Identity: `did:key`, key-history entry v1 with next-key commitment, key lookup endpoints | Contacts' keys are fetched and verified against their key history |
 | A4 | Encrypted, signed direct messages; sidebar previews decrypted in the browser | E2E test: after a conversation, the database contains none of the sent text |
 | A5 | Rooms by ID with display names, epochs and sealed keys, invite links, full history for new members, rotation on departure (sends blocked until done), key fingerprint in the header | A new member reads the whole history; a removed member can't decrypt new messages |
