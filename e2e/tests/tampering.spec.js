@@ -75,3 +75,24 @@ test("a key the log doesn't vouch for makes that person's messages fail verifica
   // Deleting entries also shrinks the log, so either detection may be reported first.
   await expect(shield).toHaveAttribute('aria-label', /transparency log/);
 });
+
+test('a stored file the server alters is refused, not shown', async ({ browser, withDb }) => {
+  const { png } = require('./files');
+  const [ada, grace] = await twoUsers(browser);
+  await openChatWith(ada.page, grace.name);
+  await ada.page.getByTestId('file-input').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png(300, 200, 'x') });
+  await ada.page.getByRole('button', { name: 'Send' }).click();
+  await expect(conversation(ada.page).getByRole('img', { name: /^photo\./ })).toHaveAttribute('data-state', 'full');
+
+  // Flip one byte of the encrypted file in storage.
+  await withDb(async (db) => {
+    const chunk = await db.collection('files.chunks').findOne();
+    const bytes = Buffer.from(chunk.data.buffer);
+    bytes[100] ^= 1;
+    await db.collection('files.chunks').updateOne({ _id: chunk._id }, { $set: { data: bytes } });
+  });
+
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(conversation(grace.page).getByRole('alert')).toContainText('does not match the hash in the signed message');
+  await expect(conversation(grace.page).getByRole('img', { name: /^photo\./ })).toHaveAttribute('data-state', 'thumbnail');
+});

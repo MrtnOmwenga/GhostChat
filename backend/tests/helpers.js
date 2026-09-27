@@ -25,7 +25,8 @@ async function startServer() {
     app,
     url,
     async reset() {
-      await Promise.all(Object.values(mongoose.connection.collections).map((c) => c.deleteMany({})));
+      // Every collection, including GridFS's, which has no mongoose model.
+      await Promise.all((await mongoose.connection.db.collections()).map((c) => c.deleteMany({})));
     },
     async stop() {
       realtime.close();

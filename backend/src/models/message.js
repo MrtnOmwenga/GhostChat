@@ -16,6 +16,7 @@ const messageSchema = new mongoose.Schema({
 
 messageSchema.index({ conversation: 1, seq: 1 }, { unique: true });
 messageSchema.index({ sender: 1 });
+messageSchema.index({ 'envelope.attachments.id': 1 }, { sparse: true });
 
 messageSchema.set('toJSON', { transform: (doc, ret) => ret.envelope });
 

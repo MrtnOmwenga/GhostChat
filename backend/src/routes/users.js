@@ -6,6 +6,7 @@ const KeyEntry = require('../models/keyEntry');
 const Joi = require('joi');
 const { tombstone, checkDeletion } = require('../services/chain');
 const { leaveRoom } = require('./rooms');
+const files = require('../services/files');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
 const { requireAuth, clearSessionCookie } = require('../auth');
@@ -37,7 +38,7 @@ router.get('/:id/keys', async (req, res) => {
   res.json(entries.map((e) => e.entry));
 });
 
-// Deleting an account: the account and its vault go; every message it sent becomes a tombstone
+// Deleting an account: the account, its vault and its files go; every message it sent becomes a tombstone
 // carrying the user's signed deletion (content erased, chain links kept, so other people's history
 // still verifies); it leaves every room, forcing a new room key. The public key history stays:
 // it is what lets others verify those signatures, and the transparency log is append-only.
@@ -50,6 +51,7 @@ router.delete('/me', async (req, res) => {
 
   const sent = await Message.find({ sender: me, 'envelope.deleted': { $exists: false } });
   await Promise.all(sent.map((m) => Message.updateOne({ _id: m._id }, { $set: { envelope: tombstone(m.envelope, deletion) } })));
+  await files.removeOwnedBy(me);
   const realtime = req.app.get('realtime');
   for (const room of await Room.find({ members: me })) {
     // eslint-disable-next-line no-await-in-loop

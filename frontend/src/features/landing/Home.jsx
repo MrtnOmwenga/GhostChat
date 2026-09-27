@@ -10,7 +10,7 @@ const FEATURES = [
   { title: 'End-to-end encrypted', text: 'Messages are encrypted in your browser and decrypted in theirs. The server stores ciphertext it cannot read.' },
   { title: 'Signed, chained, visible', text: 'Every message is signed and linked to the one before. A shield on each shows it verifies; tamper with one and it turns red.' },
   { title: 'Your keys, any device', text: 'Keys live in a vault only your password opens. Sign in anywhere; lose the password and your recovery phrase brings you back.' },
-  { title: 'Real-time and present', text: 'Messages arrive instantly, contacts show when they are online, and history is there after a reload.' },
+  { title: 'Photos and files, sealed too', text: 'Files are encrypted in your browser before upload, photos lose their location data, and deleting the message deletes the file.' },
 ];
 
 const FAQ = [
@@ -24,11 +24,15 @@ const FAQ = [
   },
   {
     question: 'What happens when I delete my account?',
-    answer: 'Your account, private keys and every message you sent are erased, and you are signed out everywhere. Your messages leave a signed "deleted" marker so conversations still verify. Your public key history stays in the transparency log, which is append-only.',
+    answer: 'Your account, private keys and every message and file you sent are erased, and you are signed out everywhere. Your messages leave a signed "deleted" marker so conversations still verify. Your public key history stays in the transparency log, which is append-only.',
   },
   {
     question: 'How are rooms protected?',
     answer: 'You join through an invite link whose secret never reaches the server. Each room has its own key, replaced whenever someone leaves, and a fingerprint members can compare.',
+  },
+  {
+    question: 'Can I send photos and files?',
+    answer: 'Yes, up to 10 MB each. Your browser encrypts them with a fresh key before uploading, so the server stores only scrambled bytes. Photos are re-encoded first, which also strips hidden metadata such as the place they were taken.',
   },
   {
     question: 'What if I forget my password?',
@@ -65,7 +69,7 @@ const Home = () => (
             <h2>Disposable accounts, vanish without a trace</h2>
             <p>
               Sign up with a username and a password, nothing else. When you&apos;re done, delete the
-              account: it goes, and so does every message you sent.
+              account: it goes, and so does every message and file you sent.
             </p>
           </div>
           <img src={disposableImage} alt="" className={style.featureImage} loading="lazy" />

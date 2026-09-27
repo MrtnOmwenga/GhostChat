@@ -3,12 +3,14 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile, FaLink, FaShieldHalved, FaTriangleExclamation, FaFingerprint,
+  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile, FaLink, FaShieldHalved, FaTriangleExclamation, FaFingerprint, FaPaperclip, FaXmark,
 } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import ChatStyle from './Conversation.module.css';
 import IconButton from '../../ui/IconButton';
-import { sendText, leaveRoom } from '../../lib/messaging';
+import { sendText, sendFile, leaveRoom } from '../../lib/messaging';
+import Attachment, { Lightbox } from './Attachment';
+import { formatBytes } from '../../lib/media';
 import { conversationClosed } from './chatSlice';
 import InvitePanel from './InvitePanel';
 import { isEmojiOnly } from '../../lib/emoji';
@@ -40,7 +42,7 @@ const Ticks = ({ readers }) => (
 );
 
 const Message = ({
-  record, fromMe, showSender, onVerify, readers,
+  record, fromMe, showSender, onVerify, readers, onOpenImage,
 }) => {
   if (record.kind === 'event') {
     return (
@@ -60,11 +62,12 @@ const Message = ({
       </li>
     );
   }
-  const big = isEmojiOnly(record.text);
+  const big = record.kind === 'text' && isEmojiOnly(record.text);
   return (
     <li className={`${ChatStyle.message} ${side} ${big ? ChatStyle.bigEmoji : ''}`}>
       {showSender && <span className={ChatStyle.sender}>{record.senderName}</span>}
-      <span className={ChatStyle.text}>{record.text}</span>
+      {record.kind === 'file' && <Attachment file={record.file} onOpenImage={onOpenImage} />}
+      {record.text && <span className={ChatStyle.text}>{record.text}</span>}
       <span className={ChatStyle.meta}>
         <time className={ChatStyle.time} dateTime={record.createdAt}>{formatTime(record.createdAt)}</time>
         {readers && <Ticks readers={readers} />}
@@ -82,6 +85,9 @@ const Conversation = ({ user }) => {
   const [chainOpen, setChainOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [keyNotice, setKeyNotice] = useState(null);
+  const [attachment, setAttachment] = useState(null); // a File chosen, pasted or dropped
+  const [image, setImage] = useState(null); // { url, file } shown full size
+  const filePicker = useRef(null);
   const keyChange = useSelector((state) => {
     const open = state.chat.active && state.chat.contacts[state.chat.active];
     return open?.kind === 'user' ? state.chat.keyChanges[open.id] : undefined;
@@ -141,6 +147,8 @@ const Conversation = ({ user }) => {
   const closePicker = useCallback(() => setPicking(false), []);
   const closeVerify = useCallback(() => setVerifying(null), []);
   const closeChain = useCallback(() => setChainOpen(false), []);
+  const closeImage = useCallback(() => setImage(null), []);
+  useEffect(() => setAttachment(null), [active]);
 
   if (!contact) {
     return (
@@ -164,14 +172,21 @@ const Conversation = ({ user }) => {
     event?.preventDefault();
     setPicking(false);
     const message = text.trim();
-    if (!message) return;
+    const file = attachment;
+    if (!message && !file) return;
     setText('');
+    setAttachment(null);
     try {
-      await sendText(contact.conversation, message);
+      if (file) await sendFile(contact.conversation, file, message);
+      else await sendText(contact.conversation, message);
     } catch (error) {
       setText(message);
+      setAttachment(file);
       toast.error(error.message);
     }
+  };
+  const pickFirst = (files) => {
+    if (files?.length) setAttachment(files[0]);
   };
 
   const leave = async () => {
@@ -191,7 +206,16 @@ const Conversation = ({ user }) => {
   }
 
   return (
-    <section className={ChatStyle.chat} aria-label={`Conversation with ${contact.name}`}>
+    <section
+      className={ChatStyle.chat}
+      aria-label={`Conversation with ${contact.name}`}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        pickFirst(e.dataTransfer.files);
+      }}
+    >
       <header className={ChatStyle.header}>
         <IconButton icon={FaArrowLeftLong} label="Back to conversations" className={ChatStyle.back} onClick={() => dispatch(conversationClosed())} />
         <div className={ChatStyle.headerText}>
@@ -223,12 +247,14 @@ const Conversation = ({ user }) => {
       )}
       <ol className={ChatStyle.messages}>
         {records.map((record) => (
-          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} readers={record.sender === user.id ? readersOf(record.seq) : null} />
+          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} readers={record.sender === user.id ? readersOf(record.seq) : null} onOpenImage={setImage} />
         ))}
         {sending.map((item) => (
-          <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending} ${isEmojiOnly(item.text) ? ChatStyle.bigEmoji : ''}`}>
-            <span className={ChatStyle.text}>{item.text}</span>
-            <span className={ChatStyle.time}>Sending…</span>
+          <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending} ${!item.file && isEmojiOnly(item.text) ? ChatStyle.bigEmoji : ''}`}>
+            {item.file?.previewUrl && <img className={ChatStyle.pendingImage} src={item.file.previewUrl} alt="" />}
+            {item.file && !item.file.previewUrl && <span className={ChatStyle.text}>{`📎 ${item.file.name}`}</span>}
+            {item.text && <span className={ChatStyle.text}>{item.text}</span>}
+            <span className={ChatStyle.time}>{item.file ? 'Encrypting and sending…' : 'Sending…'}</span>
           </li>
         ))}
         <li ref={bottom} aria-hidden="true" />
@@ -238,18 +264,42 @@ const Conversation = ({ user }) => {
           <EmojiPicker onPick={insertEmoji} close={closePicker} />
         </Suspense>
       )}
+      {attachment && (
+        <div className={ChatStyle.attachmentChip}>
+          <FaPaperclip aria-hidden="true" />
+          <span className={ChatStyle.chipName} aria-label="Attachment to send">{attachment.name}</span>
+          <span className={ChatStyle.chipSize}>{formatBytes(attachment.size)}</span>
+          <IconButton icon={FaXmark} label="Remove attachment" onClick={() => setAttachment(null)} />
+        </div>
+      )}
       <form className={ChatStyle.composer} onSubmit={submit}>
         <button type="button" aria-label="Emoji" aria-expanded={picking} onClick={() => setPicking(!picking)}><FaRegFaceSmile aria-hidden="true" /></button>
+        <button type="button" aria-label="Attach a file" className={ChatStyle.attach} onClick={() => filePicker.current?.click()}><FaPaperclip aria-hidden="true" /></button>
+        <input
+          ref={filePicker}
+          type="file"
+          hidden
+          data-testid="file-input"
+          onChange={(e) => {
+            pickFirst(e.target.files);
+            e.target.value = '';
+          }}
+        />
         <label className="sr-only" htmlFor="message">Message</label>
         <textarea
           id="message"
           ref={input}
           rows={1}
           value={text}
-          placeholder="Type a message"
+          placeholder={attachment ? 'Add a caption' : 'Type a message'}
           maxLength={4000}
           autoComplete="off"
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            if (!e.clipboardData.files.length) return;
+            e.preventDefault();
+            pickFirst(e.clipboardData.files);
+          }}
           onKeyDown={(e) => {
             // Enter sends; Shift+Enter starts a new line.
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -260,6 +310,7 @@ const Conversation = ({ user }) => {
         />
         <button type="submit" aria-label="Send"><FaPaperPlane aria-hidden="true" /></button>
       </form>
+      {image && <Lightbox image={image} close={closeImage} />}
       {inviting && <InvitePanel room={contact} close={() => setInviting(false)} />}
       {keysOpen && <ContactKeysPanel contact={contact} close={() => setKeysOpen(false)} />}
       {chainOpen && (
