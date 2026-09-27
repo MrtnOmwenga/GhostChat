@@ -97,7 +97,7 @@ test('files shared in a room are in the history a new member sees; a member who 
   const [ada, grace] = await twoUsers(browser);
   await createRoom(ada.page, uniqueName('Room'));
   await ada.page.getByTestId('file-input').setInputFiles({ name: 'plan.png', mimeType: 'image/png', buffer: png(200, 120, 'x') });
-  await ada.page.getByRole('button', { name: 'Send' }).click();
+  await ada.page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(conversation(ada.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full');
   const link = await inviteLink(ada.page);
 

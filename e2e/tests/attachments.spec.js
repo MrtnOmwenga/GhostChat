@@ -5,7 +5,7 @@ const {
 const { png, storedFileBytes } = require('./files');
 
 const attach = (page, file) => page.getByTestId('file-input').setInputFiles(file);
-const sendButton = (page) => page.getByRole('button', { name: 'Send' });
+const sendButton = (page) => page.getByRole('button', { name: 'Send', exact: true });
 
 /** The file id from the signed envelope, as any participant's browser sees it. */
 const attachmentId = (page) => page.evaluate(async () => {

@@ -81,7 +81,7 @@ test('a stored file the server alters is refused, not shown', async ({ browser, 
   const [ada, grace] = await twoUsers(browser);
   await openChatWith(ada.page, grace.name);
   await ada.page.getByTestId('file-input').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png(300, 200, 'x') });
-  await ada.page.getByRole('button', { name: 'Send' }).click();
+  await ada.page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(conversation(ada.page).getByRole('img', { name: /^photo\./ })).toHaveAttribute('data-state', 'full');
 
   // Flip one byte of the encrypted file in storage.

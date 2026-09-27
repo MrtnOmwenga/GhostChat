@@ -13,7 +13,7 @@ test('a direct message arrives live, marks the chat unread, and survives a reloa
 
   const adaRow = grace.page.getByRole('button', { name: new RegExp(ada.name) });
   await expect(adaRow.getByLabel('Unread messages')).toBeVisible();
-  await expect(adaRow.getByText('Online')).toBeVisible();
+  await expect(adaRow.getByRole('img', { name: 'Online' })).toBeVisible();
   await adaRow.click();
   await expect(delivered(grace.page, 'Hello from Ada')).toBeVisible();
 
@@ -30,9 +30,9 @@ test('presence switches to offline when the other user signs out', async ({ brow
   const [ada, grace] = await twoUsers(browser);
   await openChatWith(ada.page, grace.name);
   const status = ada.page.getByRole('button', { name: new RegExp(grace.name) });
-  await expect(status.getByText('Online')).toBeVisible();
+  await expect(status.getByRole('img', { name: 'Online' })).toBeVisible();
   await grace.page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(status.getByText('Offline')).toBeVisible();
+  await expect(status.getByRole('img', { name: 'Offline' })).toBeVisible();
 });
 
 test.describe('on a phone', () => {
