@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { FaXmark } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
-import MainStyle from '../assets/style/main-menu.module.css';
+import panel from '../assets/style/panel.module.css';
 import api from '../api';
 import { contactAdded } from '../store/chat';
 import { signOut } from '../views/chat-page';
@@ -35,15 +34,12 @@ const MainMenu = ({ ChangeView, close }) => {
   };
 
   return (
-    <div className={MainStyle.mainmenu}>
-      <FaXmark className={MainStyle.close} size={20} onClick={close} />
-      <ul>
-        <li><button type="button" onClick={() => ChangeView('create-room')}>Create Room</button></li>
-        <li><button type="button" onClick={() => ChangeView('join-room')}>Join Room</button></li>
-        <li><button type="button" onClick={showMyRooms}>My Rooms</button></li>
-        <li><button type="button" onClick={deleteAccount}>Delete Account</button></li>
-      </ul>
-    </div>
+    <ul className={panel.menu}>
+      <li><button type="button" onClick={() => ChangeView('create')}>Create a room</button></li>
+      <li><button type="button" onClick={() => ChangeView('join')}>Join a room</button></li>
+      <li><button type="button" onClick={showMyRooms}>My rooms</button></li>
+      <li><button type="button" className={panel.danger} onClick={deleteAccount}>Delete account</button></li>
+    </ul>
   );
 };
 

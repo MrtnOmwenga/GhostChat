@@ -39,6 +39,9 @@ const chat = createSlice({
       state.active = key;
       if (state.contacts[key]) state.contacts[key].unread = false;
     },
+    conversationClosed(state) {
+      state.active = null;
+    },
     historyLoaded(state, { payload: { key, messages } }) {
       state.messages[key] = messages;
     },
@@ -67,7 +70,7 @@ const chat = createSlice({
 });
 
 export const {
-  contactAdded, presenceChanged, conversationOpened, historyLoaded,
+  contactAdded, presenceChanged, conversationOpened, conversationClosed, historyLoaded,
   messageReceived, announcementReceived, chatReset,
 } = chat.actions;
 export default chat.reducer;

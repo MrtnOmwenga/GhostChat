@@ -1,105 +1,82 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import style from '../assets/style/home.module.css';
-import background from '../assets/1f3ad.svg';
-import HomeImage1 from '../assets/home_image2.jpeg';
-import HomeImage2 from '../assets/home_image3.jpg';
-import SubscribeForm from '../forms/subscribe.form';
+import masks from '../assets/1f3ad.svg';
+import disposableImage from '../assets/home_image3.jpg';
+import roomsImage from '../assets/home_image2.jpeg';
 import Nav from '../components/nav.component';
 
 const Home = () => (
-  <div className={style.home}>
+  <div className={style.home} id="top">
     <Nav />
-    <div className={style.body}>
-      <section className={style.section_a}>
-        <div className={style.container}>
-          <div className={style.div}>
-            <div className={`${style.div} ${style.t1}`}>
-              <p className={style.text}>AnonyChat</p>
-            </div>
-            <div className={`${style.div} ${style.t2}`}>
-              <p className={style.text}>Anonymity</p>
-            </div>
-            <div className={`${style.div} ${style.t3}`}>
-              <p className={style.text}>Mystery</p>
-            </div>
-            <div className={`${style.div} ${style.t4}`}>
-              <p className={style.text}>Freedom</p>
-            </div>
-            <div className={style.main}>
-              <h1>DISCOVER</h1>
-            </div>
+    <main>
+      <section className={style.hero} aria-labelledby="hero-title">
+        <div className={style.stage}>
+          <span className={`${style.corner} ${style.topLeft} ${style.brandWord}`}>GhostChat</span>
+          <span className={`${style.corner} ${style.topRight}`}>Anonymity</span>
+          <span className={`${style.corner} ${style.bottomLeft}`}>Mystery</span>
+          <span className={`${style.corner} ${style.bottomRight}`}>Freedom</span>
+          <div className={style.art}>
+            <img src={masks} alt="" className={style.masks} />
+            <h1 id="hero-title" className={style.discover}>Discover</h1>
+          </div>
+        </div>
+        <p className={style.tagline}>Disposable accounts. Private rooms. No personal details.</p>
+        <Link to="/login-register" className={style.cta}>Start messaging</Link>
+      </section>
+
+      <section id="features" className={style.features}>
+        <article className={style.feature}>
+          <div className={style.featureText}>
+            <h2>Disposable accounts, vanish without a trace</h2>
+            <p>
+              Sign up with a username and a password, nothing else. When you&apos;re done, delete the
+              account and it&apos;s gone.
+            </p>
+          </div>
+          <img src={disposableImage} alt="" className={style.featureImage} loading="lazy" />
+        </article>
+        <article className={`${style.feature} ${style.reverse}`}>
+          <div className={style.featureText}>
+            <h2>Private, password-protected rooms</h2>
+            <p>
+              Create a room, share its name and password with the people you want in it, and talk in a
+              dark, quiet interface built for conversation.
+            </p>
+          </div>
+          <img src={roomsImage} alt="" className={style.featureImage} loading="lazy" />
+        </article>
+      </section>
+
+      <section id="faq" className={style.faq}>
+        <h2>Mysterious queries, unveiled answers</h2>
+        <div className={style.faqGrid}>
+          <div>
+            <h3>How anonymous is GhostChat really?</h3>
+            <p>
+              Your account is just a username and a password: no email, phone number or real name.
+              Messages travel over HTTPS; end-to-end encryption is on the way.
+            </p>
           </div>
           <div>
-            <img className={style.background} src={background} alt="anonymous" loading="lazy" />
+            <h3>Do I need to provide personal info?</h3>
+            <p>
+              No. Pick any username that isn&apos;t taken and start talking. Nothing ties it to you
+              unless you put it there.
+            </p>
           </div>
         </div>
       </section>
 
-      <section className={style.section_b}>
-        <div className={style.section__b}>
-          <div className={style.container_a}>
-            <div className={style.text_container}>
-              <h1> Disposable Accounts, Vanish Without a Trace </h1>
-              <p>
-                {' '}
-                AnonyChat provides users with disposable accounts ensuring
-                that the user experience is tailored around anonymity, because
-                who needs a traceable online footprint?
-                {' '}
-              </p>
-            </div>
-            <div className={style.image_container}>
-              <img src={HomeImage2} alt="Image1" loading="lazy" />
-            </div>
-          </div>
-          <div className={style.container_b}>
-            <div className={style.image_container}>
-              <img src={HomeImage1} alt="Image2" loading="lazy" />
-            </div>
-            <div className={style.text_container}>
-              <h1> Secure, Private, and Unique Chat Rooms </h1>
-              <p>
-                {' '}
-                Chat in style through a dark, modern, and mysterious
-                interface. Get ready to delve into the depths where no identity is concealed.
-                {' '}
-              </p>
-            </div>
-          </div>
-        </div>
+      <section className={style.join}>
+        <h2>Join the enigma</h2>
+        <Link to="/login-register" className={style.ctaDark}>Create an account</Link>
       </section>
-      <section className={style.section_c}>
-        <div>
-          <h1> Mysterious Queries, Unveiled Answers </h1>
-          <div>
-            <div className={style.text_container}>
-              <h5> How anonymous is AnonyChat really? </h5>
-              <p>
-                {' '}
-                AnonyChat’s main objective is to maintain the anonymity of its users.
-                With disposable accounts and secure messaging, rest assured that your
-                privacy is our priority
-              </p>
-            </div>
-            <div className={style.text_container}>
-              <h5> Do I need to provide personal info? </h5>
-              <p>
-                {' '}
-                Nope, you don’t need to provide any personal information! Just dive
-                into the mysterious world of anonymous connections without any strings attached.
-                {' '}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className={style.section_d}>
-        <div className={style.container}>
-          <h1> JOIN THE ENIGMA </h1>
-          <SubscribeForm />
-        </div>
-      </section>
-    </div>
+    </main>
+    <footer className={style.footer}>
+      <span>GhostChat</span>
+      <a href="https://github.com/MrtnOmwenga/GhostChat">Source on GitHub</a>
+    </footer>
   </div>
 );
 

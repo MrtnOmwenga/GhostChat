@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FaSistrix, FaCircleUser, FaUsers } from 'react-icons/fa6';
+import { FaMagnifyingGlass, FaCircleUser, FaUsers } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import SBstyle from '../assets/style/sidebar.module.css';
-import ToggableMenu from './toggable.component';
 import api from '../api';
 import { requestPresence } from '../socket';
 import { contactAdded, conversationOpened, historyLoaded } from '../store/chat';
@@ -19,24 +18,41 @@ export const openConversation = async (dispatch, contact) => {
   }
 };
 
-const SideBar = ({ user, menuOpen, closeMenu }) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const dispatch = useDispatch();
-  const { contacts, order } = useSelector((state) => state.chat);
+const ContactRow = ({ name, kind, status, unread, active, onClick }) => {
+  const Icon = kind === 'room' ? FaUsers : FaCircleUser;
+  return (
+    <li>
+      <button type="button" className={`${SBstyle.row} ${active ? SBstyle.active : ''}`} onClick={onClick}>
+        <Icon size={34} className={SBstyle.avatar} aria-hidden="true" />
+        <span className={SBstyle.rowText}>
+          <span className={SBstyle.name}>{name}</span>
+          {status && <span className={`${SBstyle.status} ${status === 'Online' ? SBstyle.online : ''}`}>{status}</span>}
+        </span>
+        {unread && <span className={SBstyle.unread} aria-label="Unread messages" />}
+      </button>
+    </li>
+  );
+};
 
-  const userContactIds = order.filter((key) => contacts[key].kind === 'user').map((key) => contacts[key].id);
-  const userContactIdsKey = userContactIds.join(',');
+const SideBar = () => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null);
+  const dispatch = useDispatch();
+  const { contacts, order, active } = useSelector((state) => state.chat);
+
+  const userIdsKey = order.filter((key) => contacts[key].kind === 'user').map((key) => contacts[key].id).join(',');
   useEffect(() => {
-    requestPresence(userContactIdsKey ? userContactIdsKey.split(',') : []);
-  }, [userContactIdsKey]);
+    requestPresence(userIdsKey ? userIdsKey.split(',') : []);
+  }, [userIdsKey]);
 
   const search = async (event) => {
     event.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      setResults(null);
+      return;
+    }
     try {
       const { data } = await api.get('/users/search', { params: { q: query.trim() } });
-      if (data.length === 0) toast.info('No users found');
       setResults(data);
     } catch (error) {
       toast.error(error.message);
@@ -45,49 +61,46 @@ const SideBar = ({ user, menuOpen, closeMenu }) => {
 
   const selectResult = (found) => {
     dispatch(contactAdded({ id: found.id, name: found.username, kind: 'user' }));
-    setResults([]);
+    setResults(null);
     setQuery('');
     openConversation(dispatch, { key: `user:${found.id}`, id: found.id, kind: 'user' });
   };
 
-  const list = results.length > 0
-    ? results.map((found) => (
-      <button type="button" key={found.id} className={SBstyle.user} onClick={() => selectResult(found)}>
-        <FaCircleUser size={37.5} className={SBstyle.icon} />
-        <div><p>{found.username}</p></div>
-      </button>
-    ))
-    : order.map((key) => {
+  let list;
+  if (results) {
+    list = results.length === 0
+      ? <p className={SBstyle.empty}>No users found</p>
+      : results.map((found) => (
+        <ContactRow key={found.id} name={found.username} kind="user" onClick={() => selectResult(found)} />
+      ));
+  } else if (order.length === 0) {
+    list = <p className={SBstyle.empty}>Search for someone by username, or create a room from the menu.</p>;
+  } else {
+    list = order.map((key) => {
       const contact = contacts[key];
-      const Icon = contact.kind === 'room' ? FaUsers : FaCircleUser;
       return (
-        <button type="button" key={key} className={SBstyle.user} onClick={() => openConversation(dispatch, contact)}>
-          <Icon size={37.5} className={SBstyle.icon} />
-          <div>
-            <p>
-              {contact.name}
-              {contact.unread && <span className={SBstyle.unread_messages} aria-label="unread messages"> ●</span>}
-            </p>
-            {contact.kind === 'user' && (
-              <p className={contact.online ? SBstyle.online : SBstyle.offline}>{contact.online ? 'Online' : 'Offline'}</p>
-            )}
-            {contact.kind === 'room' && <p className={SBstyle.offline}>Room</p>}
-          </div>
-        </button>
+        <ContactRow
+          key={key}
+          name={contact.name}
+          kind={contact.kind}
+          status={contact.kind === 'room' ? 'Room' : (contact.online ? 'Online' : 'Offline')}
+          unread={contact.unread}
+          active={key === active}
+          onClick={() => openConversation(dispatch, contact)}
+        />
       );
     });
+  }
 
   return (
-    <div className={SBstyle.sidebar_container}>
-      <div className={SBstyle.sidebar}>
-        {menuOpen && <ToggableMenu close={closeMenu} user={user} />}
-        <form onSubmit={search} className={SBstyle.sidebar_form}>
-          <input className={SBstyle.search_input} type="text" placeholder="New Chat" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <FaSistrix className={SBstyle.search_icon} onClick={search} />
-        </form>
-        <div>{list}</div>
-      </div>
-    </div>
+    <aside className={SBstyle.sidebar} aria-label="Conversations">
+      <form onSubmit={search} className={SBstyle.search} role="search">
+        <label className="sr-only" htmlFor="user-search">Search users</label>
+        <input id="user-search" type="search" placeholder="New chat: search usernames" value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) setResults(null); }} />
+        <button type="submit" aria-label="Search"><FaMagnifyingGlass aria-hidden="true" /></button>
+      </form>
+      <ul className={SBstyle.list}>{list}</ul>
+    </aside>
   );
 };
 
