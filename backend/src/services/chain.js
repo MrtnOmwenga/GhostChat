@@ -104,6 +104,32 @@ async function conflict(env) {
   };
 }
 
+const deletionSchema = Joi.object({
+  type: Joi.valid('delete', 'account-deleted').required(),
+  user: objectId.required(),
+  conversation: Joi.string().when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  seq: Joi.number().integer().min(1).when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  hash: hex64.when('type', { is: 'delete', then: Joi.required(), otherwise: Joi.forbidden() }),
+  at: Joi.string().isoDate().required(),
+  keyVersion: Joi.number().integer().min(1).required(),
+  signature: b64.length(86).required(),
+});
+
+/**
+ * Checks a signed deletion (docs/DESIGN.md §6.3): a statement by the author, with their current
+ * key, that a message (or all of an account's messages) should be erased. Clients verify the same
+ * signature, so a tombstone the author didn't sign is visible as such.
+ */
+async function checkDeletion(deletion, userId) {
+  const { error, value } = deletionSchema.validate(deletion, { convert: false });
+  if (error) return error.message;
+  if (value.user !== userId) return 'you can only delete as yourself';
+  const key = await currentKeyEntry(userId);
+  if (!key || key.version !== value.keyVersion) return 'sign with your current key';
+  if (!verifySignature(key.signingKey, objectHash(value), value.signature)) return 'invalid deletion signature';
+  return null;
+}
+
 /** Erases a message's content but keeps what the chain needs to stay verifiable. */
 function tombstone(envelope, deletion) {
   const {
@@ -113,5 +139,5 @@ function tombstone(envelope, deletion) {
 }
 
 module.exports = {
-  appendEnvelope, access, genesisHash, dmConversation, tombstone, envelopeSchema,
+  appendEnvelope, access, genesisHash, dmConversation, tombstone, envelopeSchema, checkDeletion,
 };

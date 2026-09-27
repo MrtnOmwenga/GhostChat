@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile,
+  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile, FaLink, FaShieldHalved, FaTriangleExclamation,
 } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import ChatStyle from './Conversation.module.css';
@@ -12,25 +12,54 @@ import { sendText, leaveRoom } from '../../lib/messaging';
 import { conversationClosed } from './chatSlice';
 import InvitePanel from './InvitePanel';
 import { isEmojiOnly } from '../../lib/emoji';
+import { trustOf } from './trust';
+import VerifyDrawer from './VerifyDrawer';
+import ChainView from './ChainView';
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
 const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-const Message = ({ record, fromMe, showSender }) => {
-  if (record.kind === 'event') return <li className={ChatStyle.announcement}>{record.text}</li>;
-  if (record.kind === 'deleted') {
-    return <li className={`${ChatStyle.message} ${fromMe ? ChatStyle.fromMe : ChatStyle.fromThem} ${ChatStyle.deleted}`}>Message deleted</li>;
+const Shield = ({ record, onVerify }) => {
+  const trust = trustOf(record);
+  const Icon = trust.level === 'bad' ? FaTriangleExclamation : FaShieldHalved;
+  return (
+    <button type="button" className={`${ChatStyle.shield} ${ChatStyle[trust.level]}`} onClick={onVerify} aria-label={`Verify message ${record.seq}: ${trust.label}`} title={trust.label}>
+      <Icon aria-hidden="true" />
+    </button>
+  );
+};
+
+const Message = ({
+  record, fromMe, showSender, onVerify,
+}) => {
+  if (record.kind === 'event') {
+    return (
+      <li className={ChatStyle.announcement}>
+        {record.text}
+        {' '}
+        <Shield record={record} onVerify={onVerify} />
+      </li>
+    );
   }
-  if (record.kind === 'unreadable') {
-    return <li className={`${ChatStyle.message} ${ChatStyle.fromThem} ${ChatStyle.deleted}`}>This message could not be decrypted</li>;
+  const side = fromMe ? ChatStyle.fromMe : ChatStyle.fromThem;
+  if (record.kind === 'deleted' || record.kind === 'unreadable') {
+    return (
+      <li className={`${ChatStyle.message} ${record.kind === 'deleted' ? side : ChatStyle.fromThem} ${ChatStyle.deleted}`}>
+        <span className={ChatStyle.text}>{record.kind === 'deleted' ? 'Message deleted' : 'This message could not be decrypted'}</span>
+        <span className={ChatStyle.meta}><Shield record={record} onVerify={onVerify} /></span>
+      </li>
+    );
   }
   const big = isEmojiOnly(record.text);
   return (
-    <li className={`${ChatStyle.message} ${fromMe ? ChatStyle.fromMe : ChatStyle.fromThem} ${big ? ChatStyle.bigEmoji : ''}`}>
+    <li className={`${ChatStyle.message} ${side} ${big ? ChatStyle.bigEmoji : ''}`}>
       {showSender && <span className={ChatStyle.sender}>{record.senderName}</span>}
       <span className={ChatStyle.text}>{record.text}</span>
-      <time className={ChatStyle.time} dateTime={record.createdAt}>{formatTime(record.createdAt)}</time>
+      <span className={ChatStyle.meta}>
+        <time className={ChatStyle.time} dateTime={record.createdAt}>{formatTime(record.createdAt)}</time>
+        <Shield record={record} onVerify={onVerify} />
+      </span>
     </li>
   );
 };
@@ -39,6 +68,8 @@ const Conversation = ({ user }) => {
   const [text, setText] = useState('');
   const [inviting, setInviting] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [verifying, setVerifying] = useState(null); // seq of the message shown in the Verify drawer
+  const [chainOpen, setChainOpen] = useState(false);
   const input = useRef(null);
   const dispatch = useDispatch();
   const {
@@ -75,6 +106,8 @@ const Conversation = ({ user }) => {
     });
   }, []);
   const closePicker = useCallback(() => setPicking(false), []);
+  const closeVerify = useCallback(() => setVerifying(null), []);
+  const closeChain = useCallback(() => setChainOpen(false), []);
 
   if (!contact) {
     return (
@@ -133,16 +166,15 @@ const Conversation = ({ user }) => {
             )}
           </p>
         </div>
-        {isRoom && (
-          <div className={ChatStyle.actions}>
-            <IconButton icon={FaUserPlus} label="Invite people" onClick={() => setInviting(true)} />
-            <IconButton icon={FaDoorOpen} label="Leave room" onClick={leave} />
-          </div>
-        )}
+        <div className={ChatStyle.actions}>
+          <IconButton icon={FaLink} label="Show the message chain" onClick={() => setChainOpen(true)} />
+          {isRoom && <IconButton icon={FaUserPlus} label="Invite people" onClick={() => setInviting(true)} />}
+          {isRoom && <IconButton icon={FaDoorOpen} label="Leave room" onClick={leave} />}
+        </div>
       </header>
       <ol className={ChatStyle.messages}>
         {records.map((record) => (
-          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} />
+          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} />
         ))}
         {sending.map((item) => (
           <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending} ${isEmojiOnly(item.text) ? ChatStyle.bigEmoji : ''}`}>
@@ -180,6 +212,18 @@ const Conversation = ({ user }) => {
         <button type="submit" aria-label="Send"><FaPaperPlane aria-hidden="true" /></button>
       </form>
       {inviting && <InvitePanel room={contact} close={() => setInviting(false)} />}
+      {chainOpen && (
+        <ChainView conversation={contact.conversation} title={contact.name} close={closeChain} onSelect={(seq) => { setChainOpen(false); setVerifying(seq); }} />
+      )}
+      {verifying !== null && records.find((r) => r.seq === verifying) && (
+        <VerifyDrawer
+          record={records.find((r) => r.seq === verifying)}
+          previous={records.find((r) => r.seq === verifying - 1)}
+          conversation={contact.conversation}
+          isMine={records.find((r) => r.seq === verifying).sender === user.id}
+          close={closeVerify}
+        />
+      )}
     </section>
   );
 };

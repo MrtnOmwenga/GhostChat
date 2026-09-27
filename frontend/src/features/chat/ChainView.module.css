@@ -1,0 +1,115 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.panel {
+  width: min(100%, 34rem);
+  max-height: calc(100svh - 2rem);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid rgba(252, 252, 252, 0.06);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.summaryOk,
+.summaryBad {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.summaryOk { color: var(--online); }
+.summaryBad { color: var(--danger); }
+
+.chain {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+
+.genesis {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+}
+
+.item {
+  display: grid;
+  justify-items: center;
+}
+
+.arrow {
+  margin: 0.3rem 0;
+  color: var(--muted);
+}
+
+.brokenArrow {
+  color: var(--danger);
+}
+
+.block {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  border: 1.5px solid;
+  background: var(--bg);
+  text-align: left;
+}
+
+.ok { border-color: rgba(91, 214, 140, 0.45); }
+.partial { border-color: rgba(242, 193, 78, 0.5); }
+.bad { border-color: var(--danger); background: rgba(255, 122, 122, 0.06); }
+.deleted { opacity: 0.6; border-style: dashed; }
+
+.seq {
+  grid-row: span 2;
+  align-self: center;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.who {
+  font-weight: 600;
+}
+
+.hash {
+  grid-column: 2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.what {
+  grid-column: 2;
+  font-size: 0.8rem;
+  color: var(--muted);
+}

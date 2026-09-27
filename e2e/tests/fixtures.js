@@ -47,6 +47,16 @@ const test = base.test.extend({
 
   baseURL: async ({ appServer }, use) => use(appServer.url),
 
+  /** Runs the backend's tamper script against this worker's database. */
+  tamper: async ({ appServer }, use) => {
+    const { execFileSync } = require('child_process');
+    await use((conversation, seq, mode = 'content') => execFileSync(
+      process.execPath,
+      [path.join(__dirname, '..', '..', 'backend', 'scripts', 'tamper.js'), conversation, String(seq), mode],
+      { env: { ...process.env, MONGODB_URI: `${appServer.mongoUri}test` }, stdio: 'pipe' },
+    ));
+  },
+
   /** Everything stored in this worker's database, as one JSON string per collection. */
   databaseDump: async ({ appServer }, use) => {
     const { MongoClient } = require('../../backend/node_modules/mongodb');

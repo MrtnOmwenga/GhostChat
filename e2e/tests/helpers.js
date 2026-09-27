@@ -58,8 +58,8 @@ async function openChatWith(page, username) {
 }
 
 async function send(page, text) {
-  await page.getByLabel('Message').fill(text);
-  await page.getByLabel('Message').press('Enter');
+  await page.getByLabel('Message', { exact: true }).fill(text);
+  await page.getByLabel('Message', { exact: true }).press('Enter');
 }
 
 const conversation = (page) => page.getByRole('region', { name: /Conversation with/ });
