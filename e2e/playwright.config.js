@@ -2,6 +2,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  globalSetup: require.resolve('./global-setup'),
   fullyParallel: true,
   workers: process.env.CI ? 2 : undefined,
   // A test that fails and then passes on retry is reported as flaky and still fails the run:
