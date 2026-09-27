@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import style from '../assets/style/home.module.css';
-import masks from '../assets/1f3ad.svg';
-import disposableImage from '../assets/home_image3.jpg';
-import roomsImage from '../assets/home_image2.jpeg';
-import Nav from '../components/nav.component';
+import style from './Home.module.css';
+import masks from '../../assets/images/masks.svg';
+import disposableImage from '../../assets/images/disposable.jpg';
+import roomsImage from '../../assets/images/rooms.jpeg';
+import Nav from './Nav';
 
 const FEATURES = [
   { title: 'Real-time messaging', text: 'Messages arrive instantly over a WebSocket, one to one or in rooms.' },

@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
-import store from './store';
-import { announcementReceived, messageReceived, presenceChanged } from './store/chat';
+import store from '../app/store';
+import { announcementReceived, messageReceived, presenceChanged } from '../features/chat/chatSlice';
 
 let socket = null;
 

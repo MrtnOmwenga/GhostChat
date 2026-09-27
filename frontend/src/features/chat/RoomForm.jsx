@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import panel from '../assets/style/panel.module.css';
-import api from '../api';
-import { contactAdded } from '../store/chat';
-import { openConversation } from '../components/sidebar.component';
+import panel from '../../ui/Panel.module.css';
+import api from '../../lib/api';
+import { contactAdded } from './chatSlice';
+import { openConversation } from './Sidebar';
 
 /** Creating and joining a room take the same fields; creating also asks to confirm the password. */
 const RoomForm = ({ mode, close, back }) => {

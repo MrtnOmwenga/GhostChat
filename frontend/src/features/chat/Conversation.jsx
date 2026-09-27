@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaArrowLeftLong, FaPaperPlane } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
-import ChatStyle from '../assets/style/chat.module.css';
-import IconButton from './icon-button.component';
-import { sendMessage } from '../socket';
-import { conversationClosed } from '../store/chat';
+import ChatStyle from './Conversation.module.css';
+import IconButton from '../../ui/IconButton';
+import { sendMessage } from '../../lib/socket';
+import { conversationClosed } from './chatSlice';
 
 const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 

@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaMagnifyingGlass, FaCircleUser, FaUsers } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
-import SBstyle from '../assets/style/sidebar.module.css';
-import api from '../api';
-import { requestPresence } from '../socket';
-import { contactAdded, conversationOpened, historyLoaded } from '../store/chat';
+import SBstyle from './Sidebar.module.css';
+import api from '../../lib/api';
+import { requestPresence } from '../../lib/socket';
+import { contactAdded, conversationOpened, historyLoaded } from './chatSlice';
 
 export const openConversation = async (dispatch, contact) => {
   dispatch(conversationOpened(contact.key));

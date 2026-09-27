@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaArrowRightFromBracket, FaBars } from 'react-icons/fa6';
-import CPstyle from '../assets/style/chat-page.module.css';
-import Chat from '../components/chat.component';
-import SideBar from '../components/sidebar.component';
-import Toggable from '../components/toggable.component';
-import IconButton from '../components/icon-button.component';
-import api from '../api';
-import { connect, disconnect } from '../socket';
-import { signedIn, signedOut } from '../store/session';
-import { chatReset, contactAdded } from '../store/chat';
+import CPstyle from './ChatPage.module.css';
+import Chat from './Conversation';
+import SideBar from './Sidebar';
+import Toggable from './MenuPanel';
+import IconButton from '../../ui/IconButton';
+import api from '../../lib/api';
+import { connect, disconnect } from '../../lib/socket';
+import { signedIn, signedOut } from '../auth/sessionSlice';
+import { chatReset, contactAdded } from './chatSlice';
 
 export const signOut = async (dispatch, navigate) => {
   await api.post('/auth/logout').catch(() => {});

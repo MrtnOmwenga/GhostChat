@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import reducer, {
   contactAdded, conversationOpened, messageReceived, presenceChanged, announcementReceived,
-} from './chat';
+} from './chatSlice';
 
 const me = 'me';
 const dm = (id, from, to, text = 'hi') => ({ id, from: { id: from, username: from }, to, text, createdAt: '2026-01-01T00:00:00Z' });
