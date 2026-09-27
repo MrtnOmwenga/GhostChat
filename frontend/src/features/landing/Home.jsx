@@ -8,7 +8,7 @@ import Nav from './Nav';
 
 const FEATURES = [
   { title: 'End-to-end encrypted', text: 'Messages are encrypted in your browser and decrypted in theirs. The server stores ciphertext it cannot read.' },
-  { title: 'Signed and chained', text: 'Every message is signed by its author and linked to the one before. The server checks both before storing it, and your browser checks them again.' },
+  { title: 'Signed, chained, visible', text: 'Every message is signed and linked to the one before. A shield on each shows it verifies; tamper with one and it turns red.' },
   { title: 'Your keys, any device', text: 'Keys live in a vault only your password opens. Sign in anywhere; lose the password and your recovery phrase brings you back.' },
   { title: 'Real-time and present', text: 'Messages arrive instantly, contacts show when they are online, and history is there after a reload.' },
 ];
@@ -24,7 +24,7 @@ const FAQ = [
   },
   {
     question: 'What happens when I delete my account?',
-    answer: 'Your account, keys and every message you sent are erased, and you are signed out everywhere. Your messages leave a "deleted" marker so the conversation\'s chain still verifies. Rooms you were in replace their key.',
+    answer: 'Your account, private keys and every message you sent are erased, and you are signed out everywhere. Your messages leave a signed "deleted" marker so conversations still verify. Your public key history stays in the transparency log, which is append-only.',
   },
   {
     question: 'How are rooms protected?',
