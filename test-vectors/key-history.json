@@ -1,0 +1,44 @@
+{
+  "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
+  "entries": [
+    {
+      "type": "create",
+      "username": "ada",
+      "did": "did:key:z6MkoRLbxTKxcSgtXGyfWLT7mc9wrF2bphQvqkgn5MhDQGfy",
+      "version": 1,
+      "signingKey": "hTssq-1Zadw0-tSZqbkDqJ_Q8IUYsnMCA7tbKXEDi0g",
+      "encryptionKey": "KsmEPkBLWz0ZdQrO4RzUfZdk6jcVwT68UHEQesSMg0o",
+      "nextKeyCommitment": "083a7921ee32603014212cdee4c4f216b60417da1f974277a56f8bc4e9e91f13",
+      "prev": null,
+      "reason": "",
+      "createdAt": "2026-09-27T05:43:11.348Z",
+      "signature": "l9AW1XLp4bpoovM86aaYaF-8Wy9zAwnuhdhP1t4_Lfb1Zo8-IDl4X3_hJaM6c_XchWTIwXou_58cnW4flP74Cg"
+    },
+    {
+      "type": "rotate",
+      "username": "ada",
+      "did": "did:key:z6MkoRLbxTKxcSgtXGyfWLT7mc9wrF2bphQvqkgn5MhDQGfy",
+      "version": 2,
+      "signingKey": "RWRXVM9EbkNAVsUqc2flMkTD6otAuiZ5qgDVEaegHOg",
+      "encryptionKey": "KJsbQXmFq4yZwxAsFE6ZbpkzuVKKQgpDtR8AHwL-Lmg",
+      "nextKeyCommitment": "a1b24dd0a04fe8d0e27a61238fa83df1a8c8fcdf36e33152c970a7ef213b73d8",
+      "prev": "10dba95ff8cf0aefb4e024a5fc205a33fd49411d78955c1d6df6c6a8ea7b7402",
+      "reason": "routine",
+      "createdAt": "2026-10-01T00:00:00.000Z",
+      "signature": "8XdQwlhJZvXXD2NFhCrDGvbMK75_LLSfX3wrX8VVTE5DvrOFZyEClheYhTEpJ5rd0YYnEpnyJ0GJzzxtyfTtBw"
+    },
+    {
+      "type": "reset",
+      "username": "ada",
+      "did": "did:key:z6MkoRLbxTKxcSgtXGyfWLT7mc9wrF2bphQvqkgn5MhDQGfy",
+      "version": 3,
+      "signingKey": "pte-L5ud61NlrK4rPjSmiq6qLsUjENbZDk-EbAK9Hr0",
+      "encryptionKey": "YNuqrfyg-3iPjcO3FDOrd627Y18eDV8_0f1NEFjUMGs",
+      "nextKeyCommitment": "06179eca938fc9a3a46393f63a91b976eef3f48ccd6d2a72dc9739b7bd9d01ef",
+      "prev": "c08ff34cac74f33d6316460fe3a7623fdc03868109e66186d1f068181756947a",
+      "reason": "lost phrase",
+      "createdAt": "2026-10-02T00:00:00.000Z",
+      "signature": "Gyl60tJsEJbJVg5LRFMVfxPhfoKuAmx24ftUK8SwJc9bdITTynViVEGS6AGPpgUGdLjpF9k7R9NtHDh-lLerBg"
+    }
+  ]
+}

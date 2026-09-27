@@ -1,0 +1,53 @@
+[
+  {
+    "input": {
+      "b": 2,
+      "a": 1
+    },
+    "canonical": "{\"a\":1,\"b\":2}"
+  },
+  {
+    "input": {
+      "nested": {
+        "z": [
+          3,
+          {
+            "y": null,
+            "x": true
+          }
+        ],
+        "a": "text"
+      }
+    },
+    "canonical": "{\"nested\":{\"a\":\"text\",\"z\":[3,{\"x\":true,\"y\":null}]}}"
+  },
+  {
+    "input": {
+      "\u20ac": "e",
+      "a": "\u00e9\n\"q\"",
+      "B": 0,
+      "b": -5
+    },
+    "canonical": "{\"B\":0,\"a\":\"\u00e9\\n\\\"q\\\"\",\"b\":-5,\"\u20ac\":\"e\"}"
+  },
+  {
+    "input": {
+      "\ud83d\ude00": 1,
+      "\ufb33": 2,
+      "\u00e9": 3
+    },
+    "canonical": "{\"\u00e9\":3,\"\ud83d\ude00\":1,\"\ufb33\":2}"
+  },
+  {
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "input": {
+      "emoji": "hi \ud83d\udc4b \u2728",
+      "tab": "a\tb",
+      "ctrl": "\u0001"
+    },
+    "canonical": "{\"ctrl\":\"\\u0001\",\"emoji\":\"hi \ud83d\udc4b \u2728\",\"tab\":\"a\\tb\"}"
+  }
+]
