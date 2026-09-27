@@ -3,8 +3,10 @@ const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
 const KeyEntry = require('../models/keyEntry');
-const { tombstone } = require('../services/chain');
+const Joi = require('joi');
+const { tombstone, checkDeletion } = require('../services/chain');
 const { leaveRoom } = require('./rooms');
+const files = require('../services/files');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
 const { requireAuth, clearSessionCookie } = require('../auth');
@@ -21,6 +23,12 @@ router.get('/search', async (req, res) => {
   res.json(users);
 });
 
+router.patch('/me/settings', async (req, res) => {
+  const { receiptsEnabled } = validate(Joi.object({ receiptsEnabled: Joi.boolean().required() }), req.body);
+  const user = await User.findByIdAndUpdate(req.user.id, { receiptsEnabled }, { returnDocument: 'after' });
+  res.json(user);
+});
+
 // A user's full key history, oldest first, exactly as signed. Clients verify it themselves
 // (docs/DESIGN.md §5.2); usernames can't change in v3 because they're bound to these keys.
 router.get('/:id/keys', async (req, res) => {
@@ -30,20 +38,25 @@ router.get('/:id/keys', async (req, res) => {
   res.json(entries.map((e) => e.entry));
 });
 
-// Deleting an account: the account, its key history and vault go; every message it sent is
-// replaced by a tombstone (content erased, chain links kept, so other people's history still
-// verifies); it leaves every room, which forces those rooms to replace their key.
+// Deleting an account: the account, its vault and its files go; every message it sent becomes a tombstone
+// carrying the user's signed deletion (content erased, chain links kept, so other people's history
+// still verifies); it leaves every room, forcing a new room key. The public key history stays:
+// it is what lets others verify those signatures, and the transparency log is append-only.
 router.delete('/me', async (req, res) => {
   const me = req.user.id;
-  const deletion = { reason: 'account-deleted', at: new Date().toISOString() };
-  const sent = await Message.find({ sender: me });
+  const { deletion } = validate(Joi.object({ deletion: Joi.object().required() }), req.body || {});
+  const problem = await checkDeletion(deletion, me);
+  if (problem) throw new HttpError(400, problem);
+  if (deletion.type !== 'account-deleted') throw new HttpError(400, 'expected an account deletion');
+
+  const sent = await Message.find({ sender: me, 'envelope.deleted': { $exists: false } });
   await Promise.all(sent.map((m) => Message.updateOne({ _id: m._id }, { $set: { envelope: tombstone(m.envelope, deletion) } })));
+  await files.removeOwnedBy(me);
   const realtime = req.app.get('realtime');
   for (const room of await Room.find({ members: me })) {
     // eslint-disable-next-line no-await-in-loop
     await leaveRoom(room, me, realtime);
   }
-  await KeyEntry.deleteMany({ user: me });
   await User.deleteOne({ _id: me });
   realtime?.disconnectUser(me);
   clearSessionCookie(res);

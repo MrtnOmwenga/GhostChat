@@ -52,3 +52,16 @@ export const keyFingerprint = (sodium, key) => {
   const hex = sha256Hex(sodium, key).slice(0, 8).toUpperCase();
   return `${hex.slice(0, 4)}-${hex.slice(4)}`;
 };
+
+/** Signs any object the way deletions and receipts are signed: Ed25519 over its object hash. */
+export function signObject(sodium, body, signingPrivateKey) {
+  return { ...body, signature: toB64(sodium, sodium.crypto_sign_detached(utf8(objectHash(sodium, body)), signingPrivateKey)) };
+}
+
+export function verifyObject(sodium, object, signingKeyB64) {
+  try {
+    return sodium.crypto_sign_verify_detached(fromB64(sodium, object.signature), utf8(objectHash(sodium, object)), fromB64(sodium, signingKeyB64));
+  } catch {
+    return false;
+  }
+}

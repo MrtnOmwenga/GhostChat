@@ -3,7 +3,7 @@
  * a page reload doesn't ask for the password again. The copy is encrypted under a non-extractable
  * AES-GCM key kept in IndexedDB too: page scripts can use that key but can't read its bytes, so
  * the raw private keys never sit on disk in the clear. (It doesn't protect against script running
- * in the page itself; nothing in a web app can. See docs/DESIGN.md §11.)
+ * in the page itself; nothing in a web app can. See docs/DESIGN.md §10.)
  */
 const DB_NAME = 'ghostchat';
 const STORE = 'keys';

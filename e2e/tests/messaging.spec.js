@@ -1,6 +1,7 @@
 const { test, expect } = require('./fixtures');
 const {
   twoUsers, openChatWith, send, conversation,
+  delivered,
 } = require('./helpers');
 
 test('a direct message arrives live, marks the chat unread, and survives a reload', async ({ browser }) => {
@@ -8,30 +9,30 @@ test('a direct message arrives live, marks the chat unread, and survives a reloa
 
   await openChatWith(ada.page, grace.name);
   await send(ada.page, 'Hello from Ada');
-  await expect(conversation(ada.page).getByText('Hello from Ada')).toBeVisible();
+  await expect(delivered(ada.page, 'Hello from Ada')).toBeVisible();
 
   const adaRow = grace.page.getByRole('button', { name: new RegExp(ada.name) });
   await expect(adaRow.getByLabel('Unread messages')).toBeVisible();
-  await expect(adaRow.getByText('Online')).toBeVisible();
+  await expect(adaRow.getByRole('img', { name: 'Online' })).toBeVisible();
   await adaRow.click();
-  await expect(conversation(grace.page).getByText('Hello from Ada')).toBeVisible();
+  await expect(delivered(grace.page, 'Hello from Ada')).toBeVisible();
 
   await send(grace.page, 'Hi Ada');
-  await expect(conversation(ada.page).getByText('Hi Ada')).toBeVisible();
+  await expect(delivered(ada.page, 'Hi Ada')).toBeVisible();
 
   await ada.page.reload();
   await ada.page.getByRole('button', { name: new RegExp(grace.name) }).click();
-  await expect(conversation(ada.page).getByText('Hello from Ada')).toBeVisible();
-  await expect(conversation(ada.page).getByText('Hi Ada')).toBeVisible();
+  await expect(delivered(ada.page, 'Hello from Ada')).toBeVisible();
+  await expect(delivered(ada.page, 'Hi Ada')).toBeVisible();
 });
 
 test('presence switches to offline when the other user signs out', async ({ browser }) => {
   const [ada, grace] = await twoUsers(browser);
   await openChatWith(ada.page, grace.name);
   const status = ada.page.getByRole('button', { name: new RegExp(grace.name) });
-  await expect(status.getByText('Online')).toBeVisible();
+  await expect(status.getByRole('img', { name: 'Online' })).toBeVisible();
   await grace.page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(status.getByText('Offline')).toBeVisible();
+  await expect(status.getByRole('img', { name: 'Offline' })).toBeVisible();
 });
 
 test.describe('on a phone', () => {
@@ -42,7 +43,7 @@ test.describe('on a phone', () => {
 
     const search = grace.page.getByLabel('Search users');
     await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
-    await expect(conversation(grace.page).getByText('Fits on a phone?')).toBeVisible();
+    await expect(delivered(grace.page, 'Fits on a phone?')).toBeVisible();
     await expect(search).toBeHidden();
 
     await grace.page.getByRole('button', { name: 'Back to conversations' }).click();

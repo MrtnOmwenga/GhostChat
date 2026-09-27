@@ -4,10 +4,16 @@ const config = require('./config');
 const { createApp } = require('./app');
 const { createRealtime } = require('./realtime');
 const { MemoryPresence, RedisPresence } = require('./presence');
+const log = require('./services/log');
+const anchoring = require('./services/anchoring');
+const files = require('./services/files');
 
 async function start() {
   await mongoose.connect(config.mongoUri);
   console.log('Connected to MongoDB');
+  await log.backfill();
+  const stopAnchoring = anchoring.start();
+  const stopSweep = files.start();
 
   let presence = new MemoryPresence();
   let adapter;
@@ -32,6 +38,8 @@ async function start() {
   server.listen(config.port, () => console.log(`GhostChat listening on port ${config.port}`));
 
   const shutdown = async () => {
+    stopAnchoring();
+    stopSweep();
     realtime.close();
     server.close();
     await mongoose.disconnect();

@@ -108,8 +108,45 @@
   color: var(--accent);
 }
 
-.time {
+.meta {
   justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.shield {
+  display: inline-grid;
+  place-items: center;
+  padding: 0.1rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.fromMe .shield.ok { color: #1b6b3a; }
+.fromThem .shield.ok,
+.announcement .shield.ok { color: var(--online); }
+.shield.partial { color: #B8860B; }
+.fromThem .shield.partial,
+.announcement .shield.partial { color: #F2C14E; }
+.shield.bad { color: var(--danger); }
+.fromMe .shield.bad { color: #a4161a; }
+
+.ticks {
+  font-size: 0.7rem;
+  letter-spacing: -0.15em;
+  opacity: 0.7;
+}
+
+.ticks.read {
+  opacity: 1;
+  color: #0b5ed7;
+}
+
+.time {
   font-size: 0.68rem;
   opacity: 0.7;
 }
@@ -166,7 +203,18 @@
   line-height: 1.2;
 }
 
-.bigEmoji .time {
+.bigEmoji .ticks {
+  font-size: 0.7rem;
+  letter-spacing: -0.15em;
+  opacity: 0.7;
+}
+
+.ticks.read {
+  opacity: 1;
+  color: #0b5ed7;
+}
+
+.time {
   color: var(--muted);
 }
 
@@ -193,8 +241,81 @@
   height: 3rem;
 }
 
+.composer .attach {
+  margin-left: -0.75rem;
+  padding: 0 0.75rem;
+}
+
+.attachmentChip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0 clamp(0.75rem, 3vw, 2rem) 0.4rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.8rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.chipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text, inherit);
+}
+
+.chipSize {
+  flex: 1;
+  color: var(--muted);
+}
+
+.pendingImage {
+  display: block;
+  width: min(18rem, 100%);
+  max-height: 22rem;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* On the accent-coloured bubbles, muted grey text is too faint to read. */
+.fromMe .time {
+  color: var(--ink);
+  opacity: 0.65;
+}
+
 @media (max-width: 760px) {
   .back {
     display: inline-grid;
   }
+}
+
+.keyNotice {
+  margin: 0.5rem clamp(0.75rem, 3vw, 2rem) 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.keyNotice button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.notice_bad { background: rgba(255, 122, 122, 0.12); color: var(--danger); }
+.notice_warn { background: rgba(242, 193, 78, 0.12); color: #F2C14E; }
+.notice_info { background: rgba(137, 210, 220, 0.1); color: var(--accent); }
+
+/* Emoji-only messages have no bubble behind them, so their time goes back to the page colours. */
+.fromMe.bigEmoji .time {
+  color: var(--muted);
+  opacity: 0.7;
 }

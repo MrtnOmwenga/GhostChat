@@ -1,20 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { FaArrowLeftLong, FaRegCopy } from 'react-icons/fa6';
+import { FaArrowLeftLong } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import style from './AuthPage.module.css';
 import IconButton from '../../ui/IconButton';
 import PasswordField from './PasswordField';
 import { signedIn } from './sessionSlice';
 import { signIn, signUp, recover } from './accountFlows';
-import { generatePhrase, isValidPhrase, normalizePhrase } from '../../lib/crypto/phrase';
-
-const pickThree = () => {
-  const picks = new Set();
-  while (picks.size < 3) picks.add(Math.floor(Math.random() * 24));
-  return [...picks].sort((a, b) => a - b);
-};
+import { isValidPhrase, normalizePhrase } from '../../lib/crypto/phrase';
+import PhraseSetup from './PhraseSetup';
 
 const SignIn = ({ onDone, setMode }) => {
   const [username, setUsername] = useState('');
@@ -60,12 +55,7 @@ const SignUp = ({ onDone, setMode }) => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [strong, setStrong] = useState(false);
-  const [written, setWritten] = useState(false);
-  const [answers, setAnswers] = useState({});
   const [busy, setBusy] = useState(false);
-  const phrase = useMemo(() => generatePhrase(), []);
-  const words = phrase.split(' ');
-  const checks = useMemo(() => pickThree(), []);
 
   const details = (event) => {
     event.preventDefault();
@@ -80,13 +70,7 @@ const SignUp = ({ onDone, setMode }) => {
     setStep('phrase');
   };
 
-  const create = async (event) => {
-    event.preventDefault();
-    const wrong = checks.find((i) => (answers[i] || '').trim().toLowerCase() !== words[i]);
-    if (wrong !== undefined) {
-      toast.error(`Word #${wrong + 1} doesn't match. Check what you wrote down.`);
-      return;
-    }
+  const create = async (phrase) => {
     setBusy(true);
     try {
       onDone(await signUp({ username, password, phrase }));
@@ -97,51 +81,7 @@ const SignUp = ({ onDone, setMode }) => {
   };
 
   if (step === 'phrase') {
-    return (
-      <>
-        <h1 className={style.title}>Recovery phrase</h1>
-        <p className={style.lead}>
-          These 24 words are the only way back into your account if you forget your password.
-          Write them down and keep them somewhere safe. Nobody, including GhostChat, can recover them for you.
-        </p>
-        <ol className={style.phrase} aria-label="Recovery phrase">
-          {words.map((word, i) => (
-            // The phrase never changes while shown, so the index is a stable key.
-            // eslint-disable-next-line react/no-array-index-key
-            <li key={i}><span>{i + 1}</span>{word}</li>
-          ))}
-        </ol>
-        <button type="button" className={style.secondary} onClick={() => navigator.clipboard?.writeText(phrase).then(() => toast.info('Copied. Paste it somewhere safe, then clear your clipboard.'))}>
-          <FaRegCopy aria-hidden="true" />
-          {' '}
-          Copy
-        </button>
-        <label className={style.checkbox} htmlFor="written">
-          <input id="written" type="checkbox" checked={written} onChange={(e) => setWritten(e.target.checked)} />
-          I&apos;ve written down my recovery phrase
-        </label>
-        <button type="button" className={style.primary} disabled={!written} onClick={() => setStep('confirm')}>Continue</button>
-      </>
-    );
-  }
-
-  if (step === 'confirm') {
-    return (
-      <>
-        <h1 className={style.title}>Confirm your phrase</h1>
-        <p className={style.lead}>Enter these words from your recovery phrase.</p>
-        <form className={style.form} onSubmit={create}>
-          {checks.map((i) => (
-            <React.Fragment key={i}>
-              <label className={style.fieldLabel} htmlFor={`word-${i}`}>{`Word #${i + 1}`}</label>
-              <input id={`word-${i}`} className={style.input} type="text" autoComplete="off" autoCapitalize="none" spellCheck="false" value={answers[i] || ''} onChange={(e) => setAnswers({ ...answers, [i]: e.target.value })} required />
-            </React.Fragment>
-          ))}
-          <button type="submit" className={style.primary} disabled={busy}>{busy ? 'Creating your keys…' : 'Create account'}</button>
-          <button type="button" className={style.textButton} onClick={() => setStep('phrase')}>Show the phrase again</button>
-        </form>
-      </>
-    );
+    return <PhraseSetup onConfirmed={create} busy={busy} busyLabel="Creating your keys…" confirmLabel="Create account" />;
   }
 
   return (

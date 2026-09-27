@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const config = require('./config');
 const Room = require('./models/room');
 const { appendEnvelope } = require('./services/chain');
+const { recordReceipt } = require('./services/receipts');
 const { userFromCookieHeader } = require('./auth');
 
 const userChannel = (id) => `user:${id}`;
@@ -20,6 +21,11 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     cors: { origin: config.corsOrigins, credentials: true },
     ...(adapter ? { adapter } : {}),
   });
+
+  const broadcastEnvelope = (who, envelope) => {
+    const channels = who.kind === 'dm' ? who.users.map(userChannel) : [roomChannel(who.room.id)];
+    io.to(channels).emit('message', envelope);
+  };
 
   io.use((socket, next) => {
     const user = userFromCookieHeader(socket.handshake.headers.cookie);
@@ -51,12 +57,25 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
       try {
         const result = await appendEnvelope(envelope, user.id);
         if (result.status !== 'ok') return reply(result);
-        const channels = result.access.kind === 'dm' ? result.access.users.map(userChannel) : [roomChannel(result.access.room.id)];
-        io.to(channels).emit('message', result.envelope);
+        broadcastEnvelope(result.access, result.envelope);
         return reply({ status: 'ok', envelope: result.envelope });
       } catch (err) {
         console.error(err);
         return reply({ status: 'error', error: 'Could not send the message' });
+      }
+    });
+
+    // Signed read receipts, only between people who both have receipts turned on.
+    socket.on('receipt', async (receipt, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      try {
+        const result = await recordReceipt(receipt, user.id);
+        if (result.status !== 'ok') return reply(result);
+        if (result.receipt) io.to(result.audience.map(userChannel)).emit('receipt', result.receipt);
+        return reply({ status: 'ok' });
+      } catch (err) {
+        console.error(err);
+        return reply({ status: 'error', error: 'Could not record the receipt' });
       }
     });
 
@@ -77,6 +96,7 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
 
   return {
     io,
+    broadcastEnvelope,
     // Called by the REST routes after a user creates or joins a room, so their open sockets start
     // receiving its messages without reconnecting.
     subscribeUserToRoom(userId, roomId) {
@@ -92,6 +112,11 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     // Ends a deleted user's open sessions; their cookie is still a valid JWT until it expires.
     disconnectUser(userId) {
       io.in(userChannel(userId)).disconnectSockets(true);
+    },
+    // Everyone drops their cached copy of this user's key history; the user's other devices must
+    // unlock the new vault.
+    keysChanged(userId, version) {
+      io.emit('keys-changed', { user: userId, version });
     },
     close: () => io.close(),
   };

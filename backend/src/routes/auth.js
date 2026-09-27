@@ -10,6 +10,7 @@ const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
 const { setSessionCookie, clearSessionCookie, requireAuth } = require('../auth');
 const { checkKeyEntry, verifySignature } = require('../crypto');
+const log = require('../services/log');
 
 const router = express.Router();
 
@@ -50,6 +51,7 @@ router.post('/register', authLimiter, async (req, res) => {
     vault: body.vault,
   });
   await KeyEntry.create({ user: user.id, version: 1, entry: body.keyEntry });
+  await log.append(user.id, user.username, body.keyEntry);
   setSessionCookie(res, user);
   res.status(201).json(user);
 });
