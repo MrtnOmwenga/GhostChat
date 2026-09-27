@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { FaXmark } from 'react-icons/fa6';
-import MainMenu from './main-menu.component';
-import RoomForm from '../forms/room.form';
-import IconButton from './icon-button.component';
-import panel from '../assets/style/panel.module.css';
+import MainMenu from './MainMenu';
+import RoomForm from './RoomForm';
+import IconButton from '../../ui/IconButton';
+import panel from '../../ui/Panel.module.css';
 
 const TITLES = { menu: 'Menu', create: 'Create a room', join: 'Join a room' };
 

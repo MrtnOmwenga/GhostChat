@@ -2,10 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import panel from '../assets/style/panel.module.css';
-import api from '../api';
-import { contactAdded } from '../store/chat';
-import { signOut } from '../views/chat-page';
+import panel from '../../ui/Panel.module.css';
+import api from '../../lib/api';
+import { contactAdded } from './chatSlice';
+import { signOut } from './ChatPage';
 
 const MainMenu = ({ ChangeView, close }) => {
   const navigate = useNavigate();

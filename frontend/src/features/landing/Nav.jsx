@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaBars, FaXmark } from 'react-icons/fa6';
-import IconButton from './icon-button.component';
-import NavStyle from '../assets/style/nav.module.css';
+import IconButton from '../../ui/IconButton';
+import NavStyle from './Nav.module.css';
 
 const Nav = () => {
   const [open, setOpen] = useState(false);

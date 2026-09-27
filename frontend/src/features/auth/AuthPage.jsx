@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { FaArrowLeftLong } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
-import style from '../assets/style/login-register.module.css';
-import IconButton from '../components/icon-button.component';
-import api from '../api';
-import { signedIn } from '../store/session';
+import style from './AuthPage.module.css';
+import IconButton from '../../ui/IconButton';
+import api from '../../lib/api';
+import { signedIn } from './sessionSlice';
 
 const LoginRegister = () => {
   const [mode, setMode] = useState('login');

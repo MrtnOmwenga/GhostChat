@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './views/home';
-import ChatPage from './views/chat-page';
-import LoginRegister from './views/login-register';
+import Home from './features/landing/Home';
+import ChatPage from './features/chat/ChatPage';
+import LoginRegister from './features/auth/AuthPage';
 
 const App = () => (
   <div className="App">
