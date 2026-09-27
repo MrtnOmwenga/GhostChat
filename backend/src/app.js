@@ -13,8 +13,7 @@ function createApp() {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        // The app is served over plain HTTP in local Docker; upgrading would break it there.
-        upgradeInsecureRequests: config.isProduction ? [] : null,
+        upgradeInsecureRequests: config.secureTransport ? [] : null,
       },
     },
   }));
