@@ -7,10 +7,10 @@ import roomsImage from '../../assets/images/rooms.jpeg';
 import Nav from './Nav';
 
 const FEATURES = [
-  { title: 'Real-time messaging', text: 'Messages arrive instantly over a WebSocket, one to one or in rooms.' },
-  { title: 'Know who is around', text: 'Contacts show as online while they have GhostChat open, in any tab.' },
-  { title: 'History that stays', text: 'Close the tab or reload: the last 100 messages of each conversation are waiting.' },
-  { title: 'Built to be hard to abuse', text: 'Sessions in httpOnly cookies, hashed passwords, and rate limits on sign-in and messages.' },
+  { title: 'End-to-end encrypted', text: 'Messages are encrypted in your browser and decrypted in theirs. The server stores ciphertext it cannot read.' },
+  { title: 'Signed and chained', text: 'Every message is signed by its author and linked to the one before. The server checks both before storing it, and your browser checks them again.' },
+  { title: 'Your keys, any device', text: 'Keys live in a vault only your password opens. Sign in anywhere; lose the password and your recovery phrase brings you back.' },
+  { title: 'Real-time and present', text: 'Messages arrive instantly, contacts show when they are online, and history is there after a reload.' },
 ];
 
 const FAQ = [
@@ -20,19 +20,19 @@ const FAQ = [
   },
   {
     question: 'Can the server read my messages?',
-    answer: 'Today, yes: messages are stored so your history survives a reload, and they travel over HTTPS. End-to-end encryption is next, after which the server will only hold text it cannot read.',
+    answer: 'No. Your browser encrypts each message before sending it, and only the people in the conversation hold the keys to decrypt it. The server stores and relays ciphertext. It still sees who talks to whom and when.',
   },
   {
     question: 'What happens when I delete my account?',
-    answer: 'Your account, every message you sent and your room memberships are deleted, and you are signed out everywhere. Rooms you were alone in go too; rooms with other members pass to one of them.',
+    answer: 'Your account, keys and every message you sent are erased, and you are signed out everywhere. Your messages leave a "deleted" marker so the conversation\'s chain still verifies. Rooms you were in replace their key.',
   },
   {
     question: 'How are rooms protected?',
-    answer: 'Joining a room takes its exact name and password. Only members can read its history or post in it, and membership is checked on every message.',
+    answer: 'You join through an invite link whose secret never reaches the server. Each room has its own key, replaced whenever someone leaves, and a fingerprint members can compare.',
   },
   {
-    question: 'Is my history kept forever?',
-    answer: 'Messages stay until you delete your account. Each conversation loads its latest 100 messages.',
+    question: 'What if I forget my password?',
+    answer: 'The 24-word recovery phrase you wrote down at sign-up restores your account. Without the password and the phrase, nobody can recover it, including GhostChat: that is what makes the encryption real.',
   },
   {
     question: 'Do I need to provide personal info?',
@@ -55,7 +55,7 @@ const Home = () => (
             <h1 id="hero-title" className={style.discover}>Discover</h1>
           </div>
         </div>
-        <p className={style.tagline}>Disposable accounts. Private rooms. No personal details.</p>
+        <p className={style.tagline}>End-to-end encrypted. Disposable accounts. No personal details.</p>
         <Link to="/login-register" className={style.cta}>Start messaging</Link>
       </section>
 
@@ -72,10 +72,10 @@ const Home = () => (
         </article>
         <article className={`${style.feature} ${style.reverse}`}>
           <div className={style.featureText}>
-            <h2>Private, password-protected rooms</h2>
+            <h2>Private rooms, joined by invite</h2>
             <p>
-              Create a room, share its name and password with the people you want in it, and talk.
-              Only members can read or post, and everyone sees when someone new joins.
+              Create a room and share an invite link. Its secret never touches the server, every
+              room key is encrypted for its members only, and everyone sees when someone joins.
             </p>
           </div>
           <img src={roomsImage} alt="" className={style.featureImage} loading="lazy" />
