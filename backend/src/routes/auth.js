@@ -9,7 +9,7 @@ const { setSessionCookie, clearSessionCookie, requireAuth } = require('../auth')
 
 const router = express.Router();
 
-const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', config.bcryptRounds);
 
 // Brute-forcing passwords is the main attack on these two endpoints, so they get a much tighter
 // budget than the rest of the API.
@@ -23,7 +23,7 @@ const authLimiter = rateLimit({
 
 router.post('/register', authLimiter, async (req, res) => {
   const { username, password } = validate(schemas.credentials, req.body);
-  const user = await User.create({ username, passwordHash: await bcrypt.hash(password, 12) });
+  const user = await User.create({ username, passwordHash: await bcrypt.hash(password, config.bcryptRounds) });
   setSessionCookie(res, user);
   res.status(201).json(user);
 });

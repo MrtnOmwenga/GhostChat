@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const config = require('../config');
 const Room = require('../models/room');
 const Message = require('../models/message');
 const schemas = require('../validation');
@@ -17,7 +18,7 @@ router.post('/', async (req, res) => {
   const { name, password } = validate(schemas.room, req.body);
   const room = await Room.create({
     name,
-    passwordHash: await bcrypt.hash(password, 12),
+    passwordHash: await bcrypt.hash(password, config.bcryptRounds),
     creator: req.user.id,
     members: [req.user.id],
   });

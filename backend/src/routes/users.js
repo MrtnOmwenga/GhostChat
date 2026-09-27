@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const config = require('../config');
 const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
@@ -24,7 +25,7 @@ router.patch('/me', async (req, res) => {
   const changes = validate(schemas.profileUpdate, req.body);
   const update = {};
   if (changes.username) update.username = changes.username;
-  if (changes.password) update.passwordHash = await bcrypt.hash(changes.password, 12);
+  if (changes.password) update.passwordHash = await bcrypt.hash(changes.password, config.bcryptRounds);
   const user = await User.findByIdAndUpdate(req.user.id, update, { returnDocument: 'after', runValidators: true });
   if (!user) throw new HttpError(404, 'Account not found');
   setSessionCookie(res, user); // the session carries the username

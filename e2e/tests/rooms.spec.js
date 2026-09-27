@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixtures');
 const { twoUsers, uniqueName, send, conversation } = require('./helpers');
 
 async function roomForm(page, action, name, password, { confirm = true } = {}) {
