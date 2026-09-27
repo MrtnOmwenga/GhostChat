@@ -1,0 +1,10 @@
+html,
+body {
+  margin: 0;
+  background-color: #0D1317;
+}
+
+/* Keeps child margins (the hero section's) inside the page instead of collapsing out of it. */
+#root {
+  display: flow-root;
+}
