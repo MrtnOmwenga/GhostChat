@@ -79,14 +79,6 @@ npm install
 npm run dev                       # http://localhost:5173, proxies to the backend
 ```
 
-Demo data (two users, `maya` and `leo`, password `correct horse`, with a direct conversation and a
-room full of long, short, multi-line and emoji messages; refuses to run against a non-local
-database):
-
-```sh
-cd backend && npm run seed        # uses MONGODB_URI, default mongodb://localhost:27017/ghostchat
-```
-
 Tests:
 
 ```sh
