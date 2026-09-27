@@ -306,6 +306,10 @@ shared `ui/`); the UI surfaces in §9.
   Integrity, reproducible builds with published bundle hashes, and a strict CSP. A browser
   extension that checks the bundle hash (as Meta's Code Verify does) or a packaged desktop app
   would close more of the gap.
+- **Account deletion keeps public keys.** Messages, the vault and private keys are erased, but the
+  username and public keys stay in the transparency log, which is append-only by design.
+- **The log is recomputed per request.** Fine for a small deployment; a large one would cache
+  interior nodes.
 - **Signatures are non-repudiable.** A signed message proves authorship to anyone. Signal chooses
   deniability instead; GhostChat chooses verifiability, since tamper evidence is the point.
 - **One keyset per account.** All devices share keys through the vault; there is no per-device
@@ -375,7 +379,12 @@ message format didn't have to change twice. B1 keeps signed deletions.
 | A5 | Rooms by ID with display names, epochs and sealed keys, invite links, full history for new members, rotation on departure (sends blocked until done), key fingerprint in the header | A new member reads the whole history; a removed member can't decrypt new messages |
 | A6 | Emoji picker (lazy-loaded), large emoji-only bubbles, multi-line composer (Enter sends, Shift+Enter adds a line) | Covered by E2E tests |
 
-### Phase B: tamper evidence and verifiable identity (~4.5 days)
+### Phase B: tamper evidence and verifiable identity (~4.5 days) · **done**
+
+Built as planned. Two decisions made along the way: deleting an account keeps its public key
+history (the log is append-only, and old signatures must stay verifiable), and the OpenTimestamps
+format is handled by GhostChat's own small implementation rather than the reference library, which
+carries 11 known vulnerabilities in its dependencies.
 
 | Step | Scope | Done when |
 |---|---|---|
