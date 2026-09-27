@@ -24,14 +24,14 @@ function setSessionCookie(res, user) {
   res.cookie(COOKIE_NAME, signSession(user), {
     httpOnly: true,
     sameSite: 'strict',
-    secure: config.isProduction,
+    secure: config.secureTransport,
     maxAge: config.sessionHours * 60 * 60 * 1000,
     path: '/',
   });
 }
 
 function clearSessionCookie(res) {
-  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', secure: config.isProduction, path: '/' });
+  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', secure: config.secureTransport, path: '/' });
 }
 
 function userFromCookieHeader(header) {

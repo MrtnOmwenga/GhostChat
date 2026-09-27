@@ -1,133 +1,119 @@
-## GhostChat Application
+# GhostChat
 
-### Overview
+[![CI](https://github.com/MrtnOmwenga/GhostChat/actions/workflows/ci.yml/badge.svg)](https://github.com/MrtnOmwenga/GhostChat/actions/workflows/ci.yml)
 
-This project is an anonymous chat application built using React, Express, and Socket.IO. It allows users to join chat rooms anonymously and communicate in real-time. User data is stored in a MongoDB database using Mongoose, and API endpoints are validated using Joi. Additionally, user data is cached using Redis for improved performance. Comprehensive tests for the API endpoints are written using Jest.
+Real-time chat with disposable accounts: sign up with just a username and password (no email,
+no personal details), message people directly or in password-protected rooms, and delete the
+account when you're done.
 
-### Features
+React (Vite, Redux Toolkit) · Node.js (Express 5, Socket.IO) · MongoDB · Redis · Docker
 
-- Real-time anonymous chat functionality
-- Data validation using Joi for API endpoints
-- User data caching using Redis
-- Comprehensive Jest tests for API endpoints
+## Run it
 
-### Additional Features
+```sh
+echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
+docker compose up --build        # or: podman-compose up --build
+```
 
-- **Scalability and Performance Optimization**: The application is designed to handle a large number of concurrent users efficiently. A WebSocket load balancer is implemented to distribute WebSocket connections across multiple backend servers, ensuring even distribution of connections and preventing any single server from becoming a bottleneck. Connection pooling, idle connection timeouts, and other optimizations are implemented to reduce server resource usage and improve scalability.
+Open http://localhost:5000, create two accounts in two browser windows (one private), search for
+the other user and start chatting.
 
-- **Security Measures**: The updated App.js includes robust security measures to protect user data and prevent common security vulnerabilities. These measures include:
+## Features
 
-  - **Input Validation and Sanitization**: Joi is used to validate user-provided data, ensuring that only valid and sanitized data is accepted by the API endpoints. This helps prevent injection attacks and ensures data integrity.
+- **Direct messages and rooms.** Rooms have a name and a password; the creator can delete them (API).
+  Members see "<name> joined the room" when someone new joins.
+- **History that survives a reload.** Messages are stored and the last 100 of a conversation load
+  when it's opened.
+- **Presence.** Contacts show as online while they have at least one tab open.
+- **Several server instances.** With Redis configured, Socket.IO events are relayed between
+  instances (Redis adapter) and presence counts are shared.
 
-  - **Protection Against Common Attacks**: The application is protected against common security attacks such as SQL injection, XSS (Cross-Site Scripting), and CSRF (Cross-Site Request Forgery). Parametrized queries are used to protect against SQL injection, while input validation and output encoding are used to prevent XSS attacks. The CSRF middleware provided by csurf is used to prevent CSRF attacks.
+## Design
 
-  - **JSON Web Token (JWT) Authentication**: JWT is used to authenticate users and protect API endpoints. Upon successful login, users receive a JWT token, which they include in subsequent requests to authenticate themselves. This helps prevent unauthorized access to sensitive endpoints and data.
+```
+Browser ── HTTPS ──► Express API ──────────► MongoDB (users, rooms, messages)
+   │                    │
+   └──── WebSocket ───► Socket.IO ◄────────► Redis (presence, cross-instance events)
+```
 
-  - **Secure Session Management**: Express session middleware is configured with secure options, including setting the `sameSite` attribute to `'lax'` or `'strict'`, which helps prevent CSRF and other attacks related to session management.
+The built frontend is served by the same server as the API and the WebSocket, so everything is
+one origin and the session cookie never crosses sites. In development, Vite proxies `/api` and
+`/socket.io` to the backend to keep that true.
 
-   - **Rate Limiting**: A rate limiter middleware is implemented to prevent abuse or DoS attacks by limiting the number of requests from a single IP address within a specified time window.
+### Security model
 
-  - **Content Security Policy (CSP)**: Helmet's contentSecurityPolicy middleware is used to implement a Content Security Policy, which helps mitigate the risk of XSS attacks by allowing the application to specify which sources of content are trusted.
+- **Sessions** are signed JWTs (HS256, 12 h) in an `httpOnly`, `SameSite=Strict` cookie: page
+  scripts can't read them, and other sites can't send them, which removes the need for a CSRF
+  token. The server won't start with a `JWT_SECRET` shorter than 32 characters.
+- **The WebSocket is authenticated during the handshake** from the same cookie. The sender of a
+  message always comes from the session, never from the payload, so nobody can post as someone
+  else. Room membership is checked on every message.
+- **Accounts can only be changed by their owner.** There are no `/users/:id` write routes;
+  updates and deletion go through `/users/me`.
+- **Passwords** are bcrypt-hashed (cost 12) and never leave the server; API responses are built
+  from explicit field lists. Login compares against a dummy hash for unknown usernames, so timing
+  doesn't reveal which usernames exist.
+- **Input** is validated with Joi at every boundary (REST bodies, query strings, socket
+  payloads); usernames and searches are restricted to `[A-Za-z0-9 _-]`, so no regex or query
+  operators reach MongoDB.
+- **Rate limits:** 10 login/registration attempts per IP per 15 minutes, 300 API requests per IP
+  per 15 minutes, 20 messages per connection per 10 seconds.
+- **Headers:** Helmet's defaults (CSP, HSTS, frame and MIME protections); CORS limited to
+  configured origins.
 
-- **Error Handling and Logging**: The application handles errors gracefully, providing informative error messages to users. Detailed logs are maintained for debugging and monitoring purposes.
+**Not end-to-end encrypted.** The server stores message text and could read it; transport
+encryption comes from TLS in front of the app. End-to-end encryption is the next planned step.
 
-- **Documentation**: Thorough documentation is provided in the project repository, including installation instructions, API documentation, architecture overview, and deployment guidelines. Swagger is used to document the API endpoints.
+## Development
 
-- **Deployment and CI/CD**: The application is deployed using CI/CD pipelines, with automated testing and deployment processes. Puppet is used to automate this process.
+```sh
+# backend (needs MongoDB; Redis optional)
+cd backend
+cp .env.example .env              # set JWT_SECRET
+npm install
+npm run dev                       # http://localhost:5000
 
-#### Software Architecture and Deployment
+# frontend
+cd frontend
+npm install
+npm run dev                       # http://localhost:5173, proxies to the backend
+```
 
-I deployed the anonymous chat application using a scalable and cost-effective architecture, leveraging industry-standard tools and free resources. The deployment architecture ensured high availability, scalability, and performance while minimizing costs.
+Tests:
 
-#### Components:
+```sh
+cd backend && npm test            # API + Socket.IO, against an in-memory MongoDB
+cd frontend && npm test           # chat state logic
+```
 
-1. **DigitalOcean Droplets**: DigitalOcean droplets were utilized as the primary compute instances to host the backend server, frontend application, and supporting services. Droplets offered a reliable and scalable infrastructure with flexible configurations.
+The backend suite covers authentication and session tampering, that no response contains a
+password hash, users only being able to change themselves, room permissions, sender spoofing,
+unauthenticated sockets, message delivery and storage, multi-tab presence, and rate limits.
 
-2. **Nginx**: Nginx served as the web server and reverse proxy, responsible for routing incoming HTTP requests to the appropriate backend services. It also handled SSL termination, load balancing, and caching, improving performance and security.
+### Configuration
 
-3. **MongoDB Atlas**: MongoDB Atlas was used as the cloud-hosted database service, providing a fully managed MongoDB instance. Atlas offered high availability, automatic scaling, and backups, eliminating the need for manual maintenance and ensuring data durability.
+| Variable | Default | |
+|---|---|---|
+| `JWT_SECRET` | (required) | 32+ characters |
+| `MONGODB_URI` | `mongodb://localhost:27017/ghostchat` | |
+| `REDIS_URL` | unset | enables shared presence and the Socket.IO Redis adapter |
+| `CORS_ORIGINS` | `http://localhost:5173` | comma-separated |
+| `SESSION_HOURS` | `12` | |
+| `SECURE_COOKIES` | `true` in production | set `false` only for plain-HTTP local runs |
+| `STATIC_DIR` | unset | serve the built frontend from this folder |
 
-4. **Redis Cloud by Redis Labs**: Redis Cloud was utilized for caching user data and session management, enhancing the performance and scalability of the application. It offered various caching strategies, such as in-memory caching and distributed caching, to optimize data access.
+### API
 
-5. **Docker**: Docker containers were employed for packaging the application components into lightweight and portable units. Docker simplified deployment and ensured consistency across different environments, enabling seamless scaling and management.
+| | |
+|---|---|
+| `POST /api/auth/register`, `/login`, `/logout`; `GET /api/auth/me` | session |
+| `GET /api/users/search?q=` · `PATCH /api/users/me` · `DELETE /api/users/me` | users |
+| `GET /api/rooms/mine` · `POST /api/rooms` · `POST /api/rooms/join` · `DELETE /api/rooms/:id` | rooms |
+| `GET /api/messages?with=<userId>` or `?room=<roomId>` | history |
 
-#### Deployment Workflow:
+Socket events: `message` ({ to \| room, text } → ack with the stored message), `presence`
+(user ids → ack with those online; pushed on change), `announcement`.
 
-1. **Backend Deployment**:
-   - Configured DigitalOcean droplets to host the backend Node.js server.
-   - Utilized Docker to containerize the backend application, including Express.js, MongoDB client, and Redis client.
-   - Deployed multiple instances of the backend service across droplets to achieve high availability and fault tolerance.
-   - Used Nginx for load balancing and reverse proxying incoming requests to backend instances.
-   - Implemented SSL/TLS termination with Let's Encrypt certificates for secure communication.
+## License
 
-2. **Frontend Deployment**:
-   - Hosted the frontend React application on separate DigitalOcean droplets or utilized static site hosting services like GitHub Pages or Netlify.
-   - Configured Nginx to serve the static assets and handle client-side routing.
-
-3. **Database Deployment**:
-   - Created a MongoDB Atlas cluster with the desired configuration (replication factor, storage engine, etc.).
-   - Secured the MongoDB cluster with network access controls, authentication mechanisms, and encryption at rest.
-   - Configured the backend Node.js server to connect to the MongoDB Atlas cluster securely.
-
-4. **Caching Setup**:
-   - Provisioned a Redis Cloud instance by Redis Labs and configured it for caching and session management.
-   - Integrated Redis into the backend application to store frequently accessed data and manage user sessions efficiently.
-
-#### Monitoring and Maintenance:
-
-1. **Monitoring**: Utilized monitoring tools like Prometheus, Grafana, or DataDog to monitor the performance, health, and resource utilization of the application components.
-
-2. **Logging**: Implemented centralized logging using tools like ELK stack (Elasticsearch, Logstash, Kibana) or Splunk to aggregate and analyze logs from different components.
-
-3. **Backup and Disaster Recovery**: Set up automated backups for the MongoDB Atlas cluster and Redis Cloud instance to ensure data resilience and facilitate disaster recovery.
-
-4. **Scaling**: Configured auto-scaling policies for DigitalOcean droplets based on CPU utilization or incoming traffic to handle spikes in demand efficiently.
-
-#### Puppet Configuration:
-
-A Puppet configuration file has been provided to automate the deployment and configuration of the application components, ensuring consistency and repeatability across different environments.
-
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js
-- MongoDB
-- Redis
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/MrtnOmwenga/GhostChat.git
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   cd GhostChat
-   npm install
-   ```
-
-3. Configure environment variables.
-
-4. Start and run a redis stack container
-
-   ```bash
-   docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
-   docker exec -it redis-stack redis-cli
-   ```
-
-4. Start the backend development server:
-
-   ```bash
-   npm run server
-   ```
-
-5. Start frontend development server
-
-   ```bash
-   npm start
-   ```
+[MIT](LICENSE)

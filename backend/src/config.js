@@ -8,8 +8,12 @@ if (!jwtSecret || jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be set to at least 32 characters (e.g. `openssl rand -hex 32`)');
 }
 
+// Secure cookies and HTTPS upgrades need TLS in front of the app; off for plain-HTTP local runs.
+const secureTransport = env.SECURE_COOKIES ? env.SECURE_COOKIES === 'true' : isProduction;
+
 module.exports = {
   isProduction,
+  secureTransport,
   port: Number(env.PORT) || 5000,
   mongoUri: env.MONGODB_URI || 'mongodb://localhost:27017/ghostchat',
   redisUrl: env.REDIS_URL || null,
