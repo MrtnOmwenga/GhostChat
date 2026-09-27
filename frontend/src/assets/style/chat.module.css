@@ -73,6 +73,10 @@
   border-bottom-left-radius: 4px;
 }
 
+.text {
+  white-space: pre-wrap;
+}
+
 .sender {
   font-size: 0.78rem;
   font-weight: 700;
