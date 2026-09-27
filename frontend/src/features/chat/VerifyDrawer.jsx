@@ -17,7 +17,7 @@ const Row = ({ label, children }) => (
 
 /** Everything a user needs to check one message themselves: hashes, link, signature, raw envelope. */
 const VerifyDrawer = ({
-  record, previous, conversation, isMine, close,
+  record, previous, conversation, isMine, readers, close,
 }) => {
   const [busy, setBusy] = useState(false);
   const trust = trustOf(record);
@@ -71,6 +71,9 @@ const VerifyDrawer = ({
           </Row>
           {record.kind === 'deleted' && (
             <Row label="Deleted">{`${record.deleted.type === 'account-deleted' ? 'Account deleted' : 'Deleted by the author'} · ${new Date(record.deleted.at).toLocaleString()}`}</Row>
+          )}
+          {isMine && readers && (
+            <Row label="Read by">{readers.length ? `${readers.join(', ')} (signed receipts ✓)` : 'Nobody yet'}</Row>
           )}
           {previous && v.link === false && (
             <Row label="Expected"><code title={previous.hash}>{short(previous.hash)}</code></Row>

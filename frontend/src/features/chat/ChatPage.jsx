@@ -10,7 +10,7 @@ import IconButton from '../../ui/IconButton';
 import api from '../../lib/api';
 import { connect, disconnect } from '../../lib/socket';
 import {
-  startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite,
+  startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite, receiveReceipt, markRead,
 } from '../../lib/messaging';
 import { toast } from 'react-toastify';
 import { signedIn, signedOut } from '../auth/sessionSlice';
@@ -53,7 +53,7 @@ const ChatPage = () => {
         setLocked(false);
         startMessaging(me);
         await loadConversations();
-        connect({ onMessage: receiveLive, onRoom: onRoomChanged });
+        connect({ onMessage: receiveLive, onRoom: onRoomChanged, onReceipt: receiveReceipt });
         // An invite link opened before signing in is picked up here (see JoinPage).
         const pending = sessionStorage.getItem('pendingInvite');
         if (pending) {
@@ -70,6 +70,13 @@ const ChatPage = () => {
       disconnect();
     };
   }, [dispatch, navigate, unlockedAt]);
+
+  // Coming back to the tab counts as reading the open conversation.
+  useEffect(() => {
+    const onVisible = () => { if (active && document.visibilityState === 'visible') markRead(active); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [active]);
 
   if (!user) return null;
   if (locked) {

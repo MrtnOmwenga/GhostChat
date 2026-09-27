@@ -114,6 +114,14 @@ function envelope(from, {
 
 const sealedKey = () => ({ keyVersion: 1, sealed: randomB64(80) });
 
+/** A read receipt signed by `from`. */
+const signedReceipt = (from, conversation, env) => {
+  const body = {
+    type: 'read', reader: from.user.id, conversation, upToSeq: env.seq, upToHash: env.hash, at: new Date().toISOString(), keyVersion: 1,
+  };
+  return { ...body, signature: b64(crypto.sign(null, Buffer.from(objectHash(body)), from.account.signing.privateKey)) };
+};
+
 /** A deletion signed by `from` (docs/DESIGN.md §6.3). */
 function signedDeletion(from, fields) {
   const body = { user: from.user.id, at: new Date().toISOString(), keyVersion: 1, ...fields };
@@ -132,5 +140,5 @@ const nextEvent = (socket, event) => new Promise((resolve) => { socket.once(even
 const emitAck = (socket, event, payload) => new Promise((resolve) => { socket.emit(event, payload, resolve); });
 
 module.exports = {
-  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, signedDeletion,
+  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, signedDeletion, signedReceipt,
 };

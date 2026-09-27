@@ -9,11 +9,12 @@ let socket = null;
  * Handlers are passed in rather than imported, which keeps this module free of the messaging
  * logic that depends on it.
  */
-export function connect({ onMessage, onRoom }) {
+export function connect({ onMessage, onRoom, onReceipt }) {
   if (socket) return socket;
   socket = io({ withCredentials: true });
   socket.on('message', (envelope) => onMessage(envelope));
   socket.on('room', (change) => onRoom(change));
+  socket.on('receipt', (receipt) => onReceipt(receipt));
   socket.on('presence', (change) => store.dispatch(presenceChanged(change)));
   return socket;
 }

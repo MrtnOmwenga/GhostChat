@@ -135,6 +135,17 @@
 .shield.bad { color: var(--danger); }
 .fromMe .shield.bad { color: #a4161a; }
 
+.ticks {
+  font-size: 0.7rem;
+  letter-spacing: -0.15em;
+  opacity: 0.7;
+}
+
+.ticks.read {
+  opacity: 1;
+  color: #0b5ed7;
+}
+
 .time {
   font-size: 0.68rem;
   opacity: 0.7;
@@ -192,7 +203,18 @@
   line-height: 1.2;
 }
 
-.bigEmoji .time {
+.bigEmoji .ticks {
+  font-size: 0.7rem;
+  letter-spacing: -0.15em;
+  opacity: 0.7;
+}
+
+.ticks.read {
+  opacity: 1;
+  color: #0b5ed7;
+}
+
+.time {
   color: var(--muted);
 }
 

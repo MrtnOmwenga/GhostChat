@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const config = require('./config');
 const Room = require('./models/room');
 const { appendEnvelope } = require('./services/chain');
+const { recordReceipt } = require('./services/receipts');
 const { userFromCookieHeader } = require('./auth');
 
 const userChannel = (id) => `user:${id}`;
@@ -61,6 +62,20 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
       } catch (err) {
         console.error(err);
         return reply({ status: 'error', error: 'Could not send the message' });
+      }
+    });
+
+    // Signed read receipts, only between people who both have receipts turned on.
+    socket.on('receipt', async (receipt, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      try {
+        const result = await recordReceipt(receipt, user.id);
+        if (result.status !== 'ok') return reply(result);
+        if (result.receipt) io.to(result.audience.map(userChannel)).emit('receipt', result.receipt);
+        return reply({ status: 'ok' });
+      } catch (err) {
+        console.error(err);
+        return reply({ status: 'error', error: 'Could not record the receipt' });
       }
     });
 
