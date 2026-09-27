@@ -1,45 +1,43 @@
 {
   "name": "ghostchat-backend",
-  "version": "1.0.0",
-  "description": "GhostChat backend",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "GhostChat API and real-time messaging server",
+  "private": true,
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "jest --verbose --runInBand",
-    "start": "node server.js",
-    "server": "nodemon server.js",
-    "production": "node server.js"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
-  "repository": {
-    "type": "git",
-    "url": "GhostChat"
-  },
-  "author": "MrtnOmwenga",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "body-parser": "^1.20.2",
-    "cookie-parser": "^1.4.6",
-    "csurf": "^1.11.0",
-    "dotenv": "^16.4.2",
-    "express": "^4.18.2",
-    "express-async-errors": "^3.1.1",
-    "express-session": "^1.18.0",
-    "helmet": "^7.1.0",
-    "joi": "^17.12.1",
-    "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.3.0",
-    "mongoose": "^8.1.1",
-    "nodemon": "^3.0.3",
-    "querystring": "^0.2.1",
-    "redis": "^4.6.13",
-    "socket.io": "^4.7.4",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.0",
-    "uuid": "^9.0.1",
-    "xss-clean": "^0.1.4"
+    "@socket.io/redis-adapter": "^8.3.0",
+    "bcryptjs": "^3.0.3",
+    "cookie": "^1.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "joi": "^18.2.9",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.10.2",
+    "redis": "^6.2.1",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^6.3.4"
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/env.js"
+    ],
+    "testTimeout": 30000
   }
 }
