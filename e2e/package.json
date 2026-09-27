@@ -1,0 +1,12 @@
+{
+  "name": "ghostchat-e2e",
+  "private": true,
+  "scripts": {
+    "pretest": "npm --prefix ../frontend run build",
+    "test": "playwright test"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

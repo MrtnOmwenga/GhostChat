@@ -102,6 +102,10 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     announce(roomId, text) {
       io.to(roomChannel(roomId)).emit('announcement', { room: roomId, text, createdAt: new Date() });
     },
+    // Ends a deleted user's open sessions; their cookie is still a valid JWT until it expires.
+    disconnectUser(userId) {
+      io.in(userChannel(userId)).disconnectSockets(true);
+    },
     close: () => io.close(),
   };
 }

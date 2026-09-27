@@ -102,12 +102,13 @@
   color: var(--ink);
   padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 6vw, 5rem);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(3rem, 7vw, 5rem);
 }
 
 .feature {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 22rem);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
   align-items: center;
   gap: clamp(2rem, 6vw, 5rem);
   max-width: 64rem;
@@ -116,7 +117,7 @@
 }
 
 .reverse {
-  grid-template-columns: minmax(0, 22rem) 1fr;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
 }
 
 .reverse .featureText {
@@ -135,6 +136,8 @@
 
 .featureText h2 {
   font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .featureText p {
@@ -161,23 +164,55 @@
 
 .faq h2 {
   font-size: clamp(2rem, 4vw, 2.8rem);
+  text-align: center;
+  margin-bottom: 2.5rem;
 }
 
 .faqGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   gap: 2rem 4rem;
+  margin: 0;
 }
 
-.faqGrid h3 {
+.faqGrid dt {
   font-size: 1.15rem;
+  font-weight: 600;
   margin: 0 0 0.5rem;
 }
 
-.faqGrid p {
+.faqGrid dd {
   color: var(--muted);
   line-height: 1.6;
   margin: 0;
+}
+
+.cards {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  max-width: 64rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+
+.card {
+  padding: 1.25rem 1.25rem 1.4rem;
+  border-radius: 18px;
+  background: rgba(16, 29, 66, 0.08);
+  border: 1px solid rgba(16, 29, 66, 0.14);
+}
+
+.card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.card p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .join {
@@ -223,7 +258,7 @@
 @media (max-width: 760px) {
   .feature,
   .reverse {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .reverse .featureText {
