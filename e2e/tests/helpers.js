@@ -66,6 +66,9 @@ async function send(page, text) {
 
 const conversation = (page) => page.getByRole('region', { name: /Conversation with/ });
 
+/** A message that has landed (not the momentary "Sending…" copy shown while it's in flight). */
+const delivered = (page, text) => conversation(page).getByRole('listitem').filter({ hasText: text }).filter({ hasNotText: 'Sending' });
+
 module.exports = {
-  STRONG_PASSWORD, uniqueName, signUp, signIn, twoUsers, openChatWith, send, conversation,
+  STRONG_PASSWORD, uniqueName, signUp, signIn, twoUsers, openChatWith, send, conversation, delivered,
 };

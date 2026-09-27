@@ -23,6 +23,11 @@ module.exports = {
   bcryptRounds: Number(env.BCRYPT_ROUNDS) || 12,
   corsOrigins: (env.CORS_ORIGINS || 'http://localhost:5173').split(',').map((o) => o.trim()),
   staticDir: env.STATIC_DIR || null,
+  logSigningKey: env.LOG_SIGNING_KEY || null,
+  // Daily OpenTimestamps anchoring of the key log; on in production unless ANCHORING=off.
+  anchoring: env.ANCHORING ? env.ANCHORING === 'on' : isProduction,
+  otsCalendars: (env.OTS_CALENDARS || 'https://b.pool.opentimestamps.org,https://a.pool.eternitywall.com').split(',').map((c) => c.trim()),
+  esploraUrl: env.ESPLORA_URL || 'https://blockstream.info/api',
   rateLimits: {
     apiPer15Min: Number(env.RATE_LIMIT_API) || 300,
     authPer15Min: Number(env.RATE_LIMIT_AUTH) || 10,

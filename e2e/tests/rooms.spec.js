@@ -1,6 +1,7 @@
 const { test, expect } = require('./fixtures');
 const {
   twoUsers, uniqueName, send, conversation, signUp,
+  delivered,
 } = require('./helpers');
 
 async function createRoom(page, name) {
@@ -42,8 +43,8 @@ test('invite link: the secret stays in the fragment; the joiner sees the whole h
   const secret = link.split('#')[1];
   expect(requests.join('\n')).not.toContain(secret);
 
-  await expect(conversation(grace.page).getByText('Written before Grace joined')).toBeVisible();
-  await expect(conversation(ada.page).getByText(`${grace.name} joined the room`)).toBeVisible();
+  await expect(delivered(grace.page, 'Written before Grace joined')).toBeVisible();
+  await expect(delivered(ada.page, `${grace.name} joined the room`)).toBeVisible();
   await expect(fingerprint(grace.page)).toHaveText(await fingerprint(ada.page).textContent());
 
   await send(grace.page, 'Hello, room');
@@ -69,17 +70,17 @@ test('when someone leaves, the key is replaced before anyone can send again', as
   const room = uniqueName('Room');
   await createRoom(ada.page, room);
   await joinWithLink(grace.page, await inviteLink(ada.page));
-  await expect(conversation(ada.page).getByText(`${grace.name} joined the room`)).toBeVisible();
+  await expect(delivered(ada.page, `${grace.name} joined the room`)).toBeVisible();
   const before = await fingerprint(ada.page).textContent();
 
   grace.page.once('dialog', (dialog) => dialog.accept());
   await grace.page.getByRole('button', { name: 'Leave room' }).click();
   await expect(grace.page.getByRole('button', { name: new RegExp(room) })).toHaveCount(0);
-  await expect(conversation(ada.page).getByText(`${grace.name} left the room`)).toBeVisible();
+  await expect(delivered(ada.page, `${grace.name} left the room`)).toBeVisible();
 
   await send(ada.page, 'After Grace left');
-  await expect(conversation(ada.page).getByText('After Grace left')).toBeVisible();
-  await expect(conversation(ada.page).getByText(`${ada.name} replaced the room key`)).toBeVisible();
+  await expect(delivered(ada.page, 'After Grace left')).toBeVisible();
+  await expect(delivered(ada.page, `${ada.name} replaced the room key`)).toBeVisible();
   await expect(fingerprint(ada.page)).not.toHaveText(before);
 });
 

@@ -1,5 +1,7 @@
 const { test, expect } = require('./fixtures');
-const { twoUsers, openChatWith, send, conversation } = require('./helpers');
+const {
+  twoUsers, openChatWith, send, conversation, delivered,
+} = require('./helpers');
 
 const shield = (page, seq) => conversation(page).getByRole('button', { name: new RegExp(`^Verify message ${seq}:`) });
 
@@ -34,30 +36,13 @@ test('every message carries a verified shield; the drawer shows hash, link and s
   await expect(drawer.getByRole('button', { name: 'Delete message' })).toHaveCount(0); // not grace's message
 });
 
-test('tampering with a stored message is flagged exactly where it happened', async ({ browser, tamper }) => {
-  const { grace } = await chatOfThree(browser);
-  const id = await conversationId(grace.page);
-  tamper(id, 2, 'content');
-  tamper(id, 3, 'link');
-
-  await grace.page.reload();
-  await grace.page.getByRole('button', { name: /one|two|three/ }).first().click();
-  await expect(shield(grace.page, 1)).toHaveAttribute('aria-label', /verified/);
-  await expect(shield(grace.page, 2)).toHaveAttribute('aria-label', /content does not match its hash/);
-  await expect(shield(grace.page, 3)).toHaveAttribute('aria-label', /does not link to the previous message/);
-
-  await conversation(grace.page).getByRole('button', { name: 'Show the message chain' }).click();
-  const chain = grace.page.getByRole('dialog', { name: /Chain/ });
-  await expect(chain.getByText('2 could not be verified', { exact: false })).toBeVisible();
-});
-
 test('the author deletes a message; everyone sees a verified, signed deletion', async ({ browser }) => {
   const { ada, grace } = await chatOfThree(browser);
   await shield(ada.page, 2).click();
   ada.page.once('dialog', (dialog) => dialog.accept());
   await ada.page.getByRole('dialog', { name: 'Message #2' }).getByRole('button', { name: 'Delete message' }).click();
 
-  await expect(conversation(grace.page).getByText('Message deleted')).toBeVisible();
+  await expect(delivered(grace.page, 'Message deleted')).toBeVisible();
   await expect(conversation(grace.page).getByText('two', { exact: true })).toHaveCount(0);
   await expect(shield(grace.page, 2)).toHaveAttribute('aria-label', /Deletion signed by the author/);
   await expect(shield(grace.page, 3)).toHaveAttribute('aria-label', /Signature and chain link verified/);

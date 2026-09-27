@@ -6,6 +6,7 @@ const KeyEntry = require('../models/keyEntry');
 const { validate, HttpError } = require('../errors');
 const { requireAuth } = require('../auth');
 const { checkKeyEntry } = require('../crypto');
+const log = require('../services/log');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -36,6 +37,7 @@ async function appendKeyEntry(req, res, type) {
     if (err.code === 11000) throw new HttpError(409, 'Your keys changed on another device; reload');
     throw err;
   }
+  await log.append(user.id, user.username, body.entry);
   user.vault = body.vault;
   await user.save();
   req.app.get('realtime')?.keysChanged(user.id, body.entry.version);

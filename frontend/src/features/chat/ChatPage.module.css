@@ -31,6 +31,23 @@
   white-space: nowrap;
 }
 
+.logAlert {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 122, 122, 0.15);
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.logAlert button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .panes {
   flex: 1;
   min-height: 0;
@@ -39,7 +56,24 @@
 }
 
 @media (max-width: 760px) {
-  .panes {
+  .logAlert {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 122, 122, 0.15);
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.logAlert button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.panes {
     grid-template-columns: 1fr;
   }
 
