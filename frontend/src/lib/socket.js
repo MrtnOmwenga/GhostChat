@@ -1,17 +1,19 @@
 import { io } from 'socket.io-client';
 import store from '../app/store';
-import { announcementReceived, messageReceived, presenceChanged } from '../features/chat/chatSlice';
+import { presenceChanged } from '../features/chat/chatSlice';
 
 let socket = null;
 
-/** Opens the authenticated connection; the server identifies the user from the session cookie. */
-export function connect() {
+/**
+ * Opens the authenticated connection (the server identifies the user from the session cookie).
+ * Handlers are passed in rather than imported, which keeps this module free of the messaging
+ * logic that depends on it.
+ */
+export function connect({ onMessage, onRoom }) {
   if (socket) return socket;
   socket = io({ withCredentials: true });
-  socket.on('message', (message) => {
-    store.dispatch(messageReceived({ message, meId: store.getState().session.user?.id }));
-  });
-  socket.on('announcement', (announcement) => store.dispatch(announcementReceived(announcement)));
+  socket.on('message', (envelope) => onMessage(envelope));
+  socket.on('room', (change) => onRoom(change));
   socket.on('presence', (change) => store.dispatch(presenceChanged(change)));
   return socket;
 }
@@ -21,14 +23,10 @@ export function disconnect() {
   socket = null;
 }
 
-/** Resolves with the server's reply, or rejects with its error message. */
-export function sendMessage(target, text) {
-  return new Promise((resolve, reject) => {
-    socket.emit('message', { ...target, text }, (reply) => {
-      if (reply?.error) reject(new Error(reply.error));
-      else resolve(reply.message);
-    });
-  });
+/** Emits and resolves with the server's acknowledgement. */
+export function emitWithAck(event, payload, timeoutMs = 10_000) {
+  if (!socket) return Promise.reject(new Error('Not connected'));
+  return socket.timeout(timeoutMs).emitWithAck(event, payload).catch(() => ({ status: 'error', error: 'The server did not respond' }));
 }
 
 export function requestPresence(userIds) {

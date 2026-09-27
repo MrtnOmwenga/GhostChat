@@ -24,5 +24,7 @@ const { MongoMemoryServer } = require('../backend/node_modules/mongodb-memory-se
     RATE_LIMIT_API: '100000',
     BCRYPT_ROUNDS: '4',
   });
+  // The fixture reads this line to give tests direct database access (tests/fixtures.js).
+  process.stdout.write(`${JSON.stringify({ mongoUri: mongo.getUri() })}\n`);
   require('../backend/src/index');
 })();

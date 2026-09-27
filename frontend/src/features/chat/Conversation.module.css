@@ -25,6 +25,31 @@
   margin: 0;
 }
 
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.fingerprint {
+  margin-left: 0.6rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+}
+
+.deleted {
+  font-style: italic;
+  opacity: 0.65;
+}
+
+.pending {
+  opacity: 0.6;
+}
+
 .name {
   font-weight: 700;
 }

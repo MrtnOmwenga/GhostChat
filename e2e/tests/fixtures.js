@@ -27,17 +27,39 @@ const test = base.test.extend({
     const url = `http://localhost:${port}`;
     const server = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
       env: { ...process.env, PORT: String(port) },
-      stdio: ['ignore', 'ignore', 'inherit'],
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
+    const mongoUri = new Promise((resolve) => {
+      let buffer = '';
+      server.stdout.on('data', (chunk) => {
+        buffer += chunk;
+        const line = buffer.split('\n').find((l) => l.startsWith('{"mongoUri"'));
+        if (line) resolve(JSON.parse(line).mongoUri);
+      });
     });
     try {
       await waitForHealth(url);
-      await use(url);
+      await use({ url, mongoUri: await mongoUri });
     } finally {
       server.kill('SIGTERM');
     }
   }, { scope: 'worker', auto: true }],
 
-  baseURL: async ({ appServer }, use) => use(appServer),
+  baseURL: async ({ appServer }, use) => use(appServer.url),
+
+  /** Everything stored in this worker's database, as one JSON string per collection. */
+  databaseDump: async ({ appServer }, use) => {
+    const { MongoClient } = require('../../backend/node_modules/mongodb');
+    const client = await MongoClient.connect(appServer.mongoUri);
+    await use(async () => {
+      const db = client.db('test');
+      const names = (await db.listCollections().toArray()).map((c) => c.name);
+      const dump = {};
+      for (const name of names) dump[name] = JSON.stringify(await db.collection(name).find().toArray());
+      return dump;
+    });
+    await client.close();
+  },
 });
 
 module.exports = { test, expect: base.expect };

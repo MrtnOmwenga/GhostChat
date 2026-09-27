@@ -88,6 +88,27 @@
   white-space: nowrap;
 }
 
+.topLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.time {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.preview {
+  font-size: 0.82rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status {
   font-size: 0.78rem;
   color: var(--muted);

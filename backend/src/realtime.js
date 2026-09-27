@@ -1,9 +1,7 @@
 const { Server } = require('socket.io');
 const config = require('./config');
-const Message = require('./models/message');
 const Room = require('./models/room');
-const User = require('./models/user');
-const schemas = require('./validation');
+const { appendEnvelope } = require('./services/chain');
 const { userFromCookieHeader } = require('./auth');
 
 const userChannel = (id) => `user:${id}`;
@@ -11,8 +9,8 @@ const roomChannel = (id) => `room:${id}`;
 
 /**
  * Socket.IO messaging. Every socket is authenticated from the session cookie during the
- * handshake, and the sender of a message is always taken from that session, never from the
- * payload, so a client can't post as someone else.
+ * handshake; a message's signed sender must be that session's user, so a client can't post as
+ * someone else, and the server only ever relays encrypted envelopes.
  *
  * Each user's sockets share a `user:<id>` channel (several tabs all receive their messages) and
  * join a `room:<id>` channel for every room they belong to.
@@ -44,36 +42,21 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
       ack(await presence.online(ids));
     });
 
-    socket.on('message', async (payload, ack) => {
+    // Envelopes are appended by the chain service, which checks signature, sender and chain link.
+    // A stale link gets a 'conflict' reply with the missing messages; the client rebases and
+    // resends on its own.
+    socket.on('message', async (envelope, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};
-      if (!allowMessage()) return reply({ error: 'Slow down' });
-
-      const { error, value } = schemas.outgoingMessage.validate(payload, { stripUnknown: true });
-      if (error) return reply({ error: error.message });
-
+      if (!allowMessage()) return reply({ status: 'error', error: 'Slow down' });
       try {
-        if (value.to && !(await User.exists({ _id: value.to }))) {
-          return reply({ error: 'No such user' });
-        }
-        if (value.room) {
-          // Membership is checked on every message, not cached: a user removed from a room
-          // must stop being able to post immediately.
-          const isMember = await Room.exists({ _id: value.room, members: user.id });
-          if (!isMember) return reply({ error: 'Not a member of this room' });
-        }
-        const message = await Message.create({
-          from: user.id, fromUsername: user.username, to: value.to, room: value.room, text: value.text,
-        });
-        const json = message.toJSON();
-        if (value.room) {
-          io.to(roomChannel(value.room)).emit('message', json);
-        } else {
-          io.to([userChannel(value.to), userChannel(user.id)]).emit('message', json);
-        }
-        return reply({ message: json });
+        const result = await appendEnvelope(envelope, user.id);
+        if (result.status !== 'ok') return reply(result);
+        const channels = result.access.kind === 'dm' ? result.access.users.map(userChannel) : [roomChannel(result.access.room.id)];
+        io.to(channels).emit('message', result.envelope);
+        return reply({ status: 'ok', envelope: result.envelope });
       } catch (err) {
         console.error(err);
-        return reply({ error: 'Could not send the message' });
+        return reply({ status: 'error', error: 'Could not send the message' });
       }
     });
 
@@ -99,8 +82,12 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     subscribeUserToRoom(userId, roomId) {
       io.in(userChannel(userId)).socketsJoin(roomChannel(roomId));
     },
-    announce(roomId, text) {
-      io.to(roomChannel(roomId)).emit('announcement', { room: roomId, text, createdAt: new Date() });
+    unsubscribeUserFromRoom(userId, roomId) {
+      io.in(userChannel(userId)).socketsLeave(roomChannel(roomId));
+    },
+    // Membership and key changes, so open clients refresh the room without polling.
+    roomChanged(roomId, change) {
+      io.to(roomChannel(roomId)).emit('room', { room: roomId, ...change });
     },
     // Ends a deleted user's open sessions; their cookie is still a valid JWT until it expires.
     disconnectUser(userId) {

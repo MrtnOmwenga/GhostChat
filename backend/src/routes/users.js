@@ -3,6 +3,8 @@ const User = require('../models/user');
 const Room = require('../models/room');
 const Message = require('../models/message');
 const KeyEntry = require('../models/keyEntry');
+const { tombstone } = require('../services/chain');
+const { leaveRoom } = require('./rooms');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
 const { requireAuth, clearSessionCookie } = require('../auth');
@@ -28,18 +30,22 @@ router.get('/:id/keys', async (req, res) => {
   res.json(entries.map((e) => e.entry));
 });
 
-// Deleting an account removes everything that identifies the user: the account, every message
-// they sent (direct and in rooms), their room memberships, and rooms nobody else is in.
+// Deleting an account: the account, its key history and vault go; every message it sent is
+// replaced by a tombstone (content erased, chain links kept, so other people's history still
+// verifies); it leaves every room, which forces those rooms to replace their key.
 router.delete('/me', async (req, res) => {
   const me = req.user.id;
-  await Message.deleteMany({ from: me });
-  await Room.updateMany({ members: me }, { $pull: { members: me } });
-  await Room.deleteMany({ members: { $size: 0 } });
-  // Rooms they created that still have members pass to the longest-standing remaining member.
-  await Room.updateMany({ creator: me }, [{ $set: { creator: { $arrayElemAt: ['$members', 0] } } }], { updatePipeline: true });
+  const deletion = { reason: 'account-deleted', at: new Date().toISOString() };
+  const sent = await Message.find({ sender: me });
+  await Promise.all(sent.map((m) => Message.updateOne({ _id: m._id }, { $set: { envelope: tombstone(m.envelope, deletion) } })));
+  const realtime = req.app.get('realtime');
+  for (const room of await Room.find({ members: me })) {
+    // eslint-disable-next-line no-await-in-loop
+    await leaveRoom(room, me, realtime);
+  }
   await KeyEntry.deleteMany({ user: me });
   await User.deleteOne({ _id: me });
-  req.app.get('realtime')?.disconnectUser(me);
+  realtime?.disconnectUser(me);
   clearSessionCookie(res);
   res.status(204).end();
 });

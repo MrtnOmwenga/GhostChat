@@ -1,52 +1,47 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import panel from '../../ui/Panel.module.css';
-import api from '../../lib/api';
-import { contactAdded } from './chatSlice';
-import { openConversation } from './Sidebar';
+import { acceptInvite, createRoom } from '../../lib/messaging';
 
-/** Creating and joining a room take the same fields; creating also asks to confirm the password. */
+/** Parses a pasted invite link: /join/<id>#<secret>. */
+export const parseInvite = (link) => {
+  const match = /\/join\/([0-9a-f]{24})#([A-Za-z0-9_-]{43})\s*$/.exec(link.trim());
+  return match ? { id: match[1], secret: match[2] } : null;
+};
+
 const RoomForm = ({ mode, close, back }) => {
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const dispatch = useDispatch();
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
   const creating = mode === 'create';
 
   const submit = async (event) => {
     event.preventDefault();
-    if (creating && password !== confirm) {
-      toast.error("Passwords don't match");
-      return;
-    }
+    setBusy(true);
     try {
-      const { data: room } = await api.post(creating ? '/rooms' : '/rooms/join', { name, password });
-      const contact = { id: room.id, name: room.name, kind: 'room' };
-      dispatch(contactAdded(contact));
-      openConversation(dispatch, { ...contact, key: `room:${room.id}` });
-      toast.success(creating ? 'Room created' : 'Joined room');
+      if (creating) {
+        await createRoom(value.trim());
+        toast.success('Room created');
+      } else {
+        const invite = parseInvite(value);
+        if (!invite) throw new Error("That doesn't look like a complete invite link");
+        await acceptInvite(invite.id, invite.secret);
+        toast.success('Joined room');
+      }
       close();
     } catch (error) {
       toast.error(error.message);
+      setBusy(false);
     }
   };
 
   return (
     <form className={panel.form} onSubmit={submit}>
-      <label htmlFor="room-name">Room name</label>
-      <input id="room-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-      <label htmlFor="room-password">Password</label>
-      <input id="room-password" type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
-      {creating && (
-        <>
-          <label htmlFor="room-confirm">Confirm password</label>
-          <input id="room-confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-        </>
-      )}
+      <label htmlFor="room-field">{creating ? 'Room name' : 'Invite link'}</label>
+      <input id="room-field" type="text" value={value} maxLength={creating ? 48 : 300} onChange={(e) => setValue(e.target.value)} required autoFocus />
+      {!creating && <p className={panel.note}>Paste the link a member shared with you.</p>}
       <div className={panel.actions}>
         <button type="button" className={panel.secondary} onClick={back}>Back</button>
-        <button type="submit" className={panel.primary}>{creating ? 'Create' : 'Join'}</button>
+        <button type="submit" className={panel.primary} disabled={busy}>{creating ? 'Create' : 'Join'}</button>
       </div>
     </form>
   );
