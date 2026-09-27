@@ -13,6 +13,9 @@ function createApp() {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
+        // libsodium runs as WebAssembly. 'wasm-unsafe-eval' allows compiling it without allowing
+        // JavaScript eval.
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
         upgradeInsecureRequests: config.secureTransport ? [] : null,
       },
     },

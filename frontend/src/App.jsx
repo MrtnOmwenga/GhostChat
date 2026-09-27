@@ -1,17 +1,22 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './features/landing/Home';
-import ChatPage from './features/chat/ChatPage';
-import LoginRegister from './features/auth/AuthPage';
+
+// The auth and chat pages pull in libsodium and zxcvbn (several hundred KB), so they load only
+// when visited; the landing page stays light.
+const AuthPage = lazy(() => import('./features/auth/AuthPage'));
+const ChatPage = lazy(() => import('./features/chat/ChatPage'));
 
 const App = () => (
   <div className="App">
     <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/chatpage" element={<ChatPage />} />
-        <Route path="/login-register" element={<LoginRegister />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/chatpage" element={<ChatPage />} />
+          <Route path="/login-register" element={<AuthPage />} />
+        </Routes>
+      </Suspense>
     </Router>
   </div>
 );

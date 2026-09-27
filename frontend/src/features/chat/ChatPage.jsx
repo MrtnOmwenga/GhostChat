@@ -11,9 +11,12 @@ import api from '../../lib/api';
 import { connect, disconnect } from '../../lib/socket';
 import { signedIn, signedOut } from '../auth/sessionSlice';
 import { chatReset, contactAdded } from './chatSlice';
+import { loadKeys, forgetKeys } from '../../lib/keystore';
+import UnlockPanel from '../auth/UnlockPanel';
 
 export const signOut = async (dispatch, navigate) => {
   await api.post('/auth/logout').catch(() => {});
+  await forgetKeys();
   disconnect();
   dispatch(chatReset());
   dispatch(signedOut());
@@ -24,6 +27,8 @@ const ChatPage = () => {
   const user = useSelector((state) => state.session.user);
   const active = useSelector((state) => state.chat.active);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [unlockedAt, setUnlockedAt] = useState(0);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -36,6 +41,11 @@ const ChatPage = () => {
         const { data: me } = await api.get('/auth/me');
         if (cancelled) return;
         dispatch(signedIn(me));
+        if (!(await loadKeys(me.id))) {
+          setLocked(true);
+          return;
+        }
+        setLocked(false);
         const [{ data: people }, { data: rooms }] = await Promise.all([
           api.get('/messages/conversations'),
           api.get('/rooms/mine'),
@@ -51,9 +61,12 @@ const ChatPage = () => {
       cancelled = true;
       disconnect();
     };
-  }, [dispatch, navigate]);
+  }, [dispatch, navigate, unlockedAt]);
 
   if (!user) return null;
+  if (locked) {
+    return <UnlockPanel user={user} onUnlocked={() => setUnlockedAt(Date.now())} onSignOut={() => signOut(dispatch, navigate)} />;
+  }
 
   return (
     <div className={CPstyle.page}>

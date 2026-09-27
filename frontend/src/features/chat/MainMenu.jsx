@@ -38,6 +38,7 @@ const MainMenu = ({ ChangeView, close }) => {
       <li><button type="button" onClick={() => ChangeView('create')}>Create a room</button></li>
       <li><button type="button" onClick={() => ChangeView('join')}>Join a room</button></li>
       <li><button type="button" onClick={showMyRooms}>My rooms</button></li>
+      <li><button type="button" onClick={() => ChangeView('password')}>Change password</button></li>
       <li><button type="button" className={panel.danger} onClick={deleteAccount}>Delete account</button></li>
     </ul>
   );

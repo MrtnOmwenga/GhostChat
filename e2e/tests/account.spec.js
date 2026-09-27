@@ -1,6 +1,6 @@
 const { test, expect } = require('./fixtures');
 const {
-  twoUsers, openChatWith, send, conversation,
+  twoUsers, openChatWith, send, conversation, signIn,
 } = require('./helpers');
 
 test('deleting an account removes it and every message it sent', async ({ browser }) => {
@@ -20,9 +20,7 @@ test('deleting an account removes it and every message it sent', async ({ browse
   await grace.page.getByLabel('Search users').press('Enter');
   await expect(grace.page.getByText('No users found')).toBeVisible();
 
-  await ada.page.getByLabel('Username').fill(ada.name);
-  await ada.page.getByLabel('Password', { exact: true }).fill('correct horse');
-  await ada.page.getByRole('button', { name: 'Sign in' }).click();
+  await signIn(ada.page, ada.name);
   await expect(ada.page.getByText('Incorrect username or password')).toBeVisible();
   await expect(conversation(grace.page)).toHaveCount(0);
 });
