@@ -7,6 +7,7 @@ const { validate, HttpError } = require('../errors');
 const { requireAuth } = require('../auth');
 const { access, checkDeletion, tombstone } = require('../services/chain');
 const { visibleReceipts } = require('../services/receipts');
+const files = require('../services/files');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -71,6 +72,7 @@ router.post('/delete', async (req, res) => {
   if (message.envelope.deleted) throw new HttpError(409, 'Already deleted');
   const envelope = tombstone(message.envelope, deletion);
   await Message.updateOne({ _id: message._id }, { $set: { envelope } });
+  await files.release(envelope);
   const who = await access(deletion.conversation, req.user.id);
   req.app.get('realtime')?.broadcastEnvelope(who, envelope);
   res.json(envelope);

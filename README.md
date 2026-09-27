@@ -37,6 +37,12 @@ the other user and start chatting.
   read the room's whole history. Members can compare a key fingerprint shown in the header.
 - **Automatic conflict handling.** When two people send at the same instant, the one who loses
   the race rebases onto the winner's message and resends, without the user noticing.
+- **Encrypted photos and files.** Attach, paste or drop a file (up to 10 MB). The browser
+  encrypts it with a fresh key (libsodium `secretstream`) before uploading; the server stores the
+  ciphertext in MongoDB's GridFS, so there is no separate storage service to run or pay for.
+  Photos are re-encoded first, which shrinks them and strips metadata such as GPS position, and
+  carry a small encrypted thumbnail. The signed message names the file by the hash of its
+  ciphertext, and the recipient's browser checks the download against it.
 - **Emoji, previews, presence, history.** An emoji picker (served from GhostChat itself, not a
   CDN), large emoji-only messages, multi-line messages, previews decrypted in the browser,
   online status across tabs, and history that survives a reload.
@@ -55,7 +61,7 @@ the other user and start chatting.
 - **Signed read receipts**, off by default and reciprocal: only people who turn them on send them
   and see other people's.
 - **Deletion that means it.** Deleting a message, or a whole account, is a statement the author
-  signs; the content is erased and a signed marker keeps the chain verifiable.
+  signs; the content and any files are erased and a signed marker keeps the chain verifiable.
 
 ## Design
 
@@ -67,7 +73,7 @@ password ─Argon2id─► authKey ──────────────►
 recovery phrase ─► every key version
                                             key history           (signed, per user)
 message ─encrypt─sign─link─► envelope ─────► checks signature, sender, chain link
-                                            MongoDB: ciphertext only
+                                            MongoDB: ciphertext only (files in GridFS)
                                             Socket.IO (+ Redis adapter) relays envelopes
 ```
 
@@ -76,8 +82,9 @@ one origin and the session cookie never crosses sites.
 
 ### Security model
 
-- **Content:** only conversation participants can decrypt. An end-to-end test runs real
-  conversations and then scans the whole database for the sent text: it is never there.
+- **Content:** only conversation participants can decrypt. End-to-end tests run real
+  conversations and then scan the whole database, stored files included, for the sent text and
+  file contents: they are never there.
 - **Integrity:** messages are signed and hash-chained; the server rejects forged or misaddressed
   envelopes, and clients verify every signature against the sender's key history, which must be
   in the transparency log. Envelopes carry the sender's view of the log, so two people shown
@@ -94,7 +101,7 @@ one origin and the session cookie never crosses sites.
 
 - No forward secrecy yet: a leaked private key exposes messages sent to it. Planned (Double
   Ratchet / MLS).
-- The server still sees metadata: who talks to whom, when, and message sizes.
+- The server still sees metadata: who talks to whom, when, and message and file sizes.
 - Like every web app, the server delivers the code that does the encryption.
 - Deleting an account keeps its public key history (username and public keys): the transparency
   log is append-only, and it's what lets others keep verifying old signatures.
@@ -128,12 +135,14 @@ cd e2e && npm install && npx playwright install chromium && npm test   # the who
   FIPS 180-2 (SHA-256) and BIP-39 reference vectors. Canonical-JSON vectors and a key-history
   fixture are shared by the frontend and backend suites, so the two implementations can't drift.
 - **Backend tests** cover chain conflicts, forged and tampered envelopes, key-history rules,
-  recovery challenges, room rotation, invites and tombstones.
+  recovery challenges, room rotation, invites, tombstones, and file access, quotas and cleanup.
 - **End-to-end tests** (Playwright) cover sign-up with the recovery phrase, weak passwords,
   sign-in on a new device with no password on the wire, unlocking after storage is cleared,
   password change, recovery, encrypted DMs and rooms, invite links, key rotation after someone
-  leaves, the emoji picker, that the database holds no plaintext, message and log tampering being
-  flagged, key rotation and reset as contacts see them, safety numbers, and read receipts.
+  leaves, the emoji picker, photos and files (metadata stripped, downloads decrypted, outsiders
+  refused, files deleted with their message, new room members seeing earlier files), that the
+  database holds no plaintext, message, file and log tampering being flagged, key rotation and
+  reset as contacts see them, safety numbers, and read receipts.
 - **Tampering tests** edit the server's database directly to play a compromised server. A
   worker option gives them servers of their own, so they can't corrupt what other tests see.
 
@@ -159,6 +168,8 @@ then fails the run anyway if it only passed on retry (`failOnFlakyTests`). A wee
 | `LOG_SIGNING_KEY` | derived from `JWT_SECRET` | 64 hex characters; the transparency log's Ed25519 seed |
 | `ANCHORING` | `on` in production | daily OpenTimestamps anchoring of the log |
 | `OTS_CALENDARS` | two public calendars | comma-separated |
+| `FILE_MAX_MB` | `10` | largest attachment |
+| `FILE_QUOTA_MB` | `200` | stored attachments per user |
 
 ### API
 
@@ -169,6 +180,7 @@ then fails the run anyway if it only passed on retry (`failOnFlakyTests`). A wee
 | `GET /api/rooms/mine`, `/:id` · `POST /api/rooms`, `/:id/invites`, `/:id/rotate`, `/:id/leave` · `DELETE /api/rooms/:id` | rooms |
 | `GET /api/invites/:id` · `POST /api/invites/:id/accept` | invites |
 | `GET /api/messages?conversation=` · `GET /api/messages/conversations`, `/receipts` · `POST /api/messages/delete` | encrypted history, receipts, signed deletions |
+| `POST /api/files?conversation=` (encrypted bytes) · `GET /api/files/:id` | attachments, participants only |
 | `POST /api/keys/rotate`, `/reset` · `PATCH /api/users/me/settings` | key changes, settings |
 | `GET /api/log/key`, `/head`, `/head/:size`, `/consistency`, `/entries`, `/users/:id`, `/anchors`, `/anchors/:id.ots` | transparency log (mostly public) |
 

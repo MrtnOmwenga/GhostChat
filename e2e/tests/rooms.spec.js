@@ -91,3 +91,25 @@ test('the menu closes with Escape', async ({ browser }) => {
   await ada.page.keyboard.press('Escape');
   await expect(ada.page.getByRole('dialog')).toBeHidden();
 });
+
+test('files shared in a room are in the history a new member sees; a member who left loses access', async ({ browser }) => {
+  const { png } = require('./files');
+  const [ada, grace] = await twoUsers(browser);
+  await createRoom(ada.page, uniqueName('Room'));
+  await ada.page.getByTestId('file-input').setInputFiles({ name: 'plan.png', mimeType: 'image/png', buffer: png(200, 120, 'x') });
+  await ada.page.getByRole('button', { name: 'Send' }).click();
+  await expect(conversation(ada.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full');
+  const link = await inviteLink(ada.page);
+
+  await joinWithLink(grace.page, link);
+  await expect(conversation(grace.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full');
+  const fileId = await grace.page.evaluate(async () => {
+    const rooms = await (await fetch('/api/rooms/mine')).json();
+    const history = await (await fetch(`/api/messages?conversation=room:${rooms[0].id}`)).json();
+    return history.find((m) => m.attachments).attachments[0].id;
+  });
+
+  grace.page.once('dialog', (dialog) => dialog.accept());
+  await grace.page.getByRole('button', { name: 'Leave room' }).click();
+  await expect.poll(() => grace.page.evaluate(async (id) => (await fetch(`/api/files/${id}`, { cache: 'no-store' })).status, fileId)).toBe(404);
+});

@@ -178,7 +178,7 @@ signature from the pinned key raises a warning.
   "sender": "did:key:…", "senderKeyVersion": 3,
   "ciphertext": "…", "nonce": "…",
   "keys": { "<userId>": "content key sealed to that user" },
-  "attachments": [{ "cid": "sha256:…", "size": 123, "key": "…", "mime": "image/png" }],
+  "attachments": [{ "id": "sha256 of the encrypted file", "size": 123 }],
   "logHead": "sha256 of the sender's latest tree head",
   "createdAt": "…",
   "hash": "sha256(JCS(all fields above))",
@@ -252,16 +252,28 @@ for the preview line, timestamp and unread count. The server never sees the prev
 
 **Files and images**
 
-- Encrypted in the browser with a random per-file key (`secretstream`, chunked, so large files
-  never sit whole in memory) and stored **by the hash of their ciphertext** in S3-compatible
-  storage: MinIO in Docker Compose, Amazon S3 in production.
-- The message envelope carries the hash, size, MIME type and file key; the server stores an
-  object it can't read.
-- Downloads go through short-lived pre-signed URLs issued only to conversation participants. Size
-  limits are enforced server-side; type checks happen client-side (the server can't see content).
-- Images get a small thumbnail generated in the browser before encryption and embedded
-  (encrypted) in the envelope, so a preview shows before the full image downloads.
-- An object is deleted when the last message referencing it is deleted.
+- Encrypted in the browser with a random per-file key (`secretstream`: 64 KiB chunks, each
+  authenticated, the last tagged final, so a reordered, altered or truncated file fails to
+  decrypt), then uploaded and stored **by the SHA-256 of the ciphertext** in MongoDB's GridFS.
+  GridFS needs no storage service beyond the database GhostChat already runs, and nothing extra to
+  host or pay for; the storage module is small enough to swap for S3-compatible storage (such as
+  Cloudflare R2's free tier) if files outgrow the database.
+- The envelope lists only each file's ID and size, which the server needs to check access, apply
+  quotas and delete the file with its message. The file key, name, type, dimensions and thumbnail
+  are inside the encrypted payload. Because the envelope is signed, the recipient checks the
+  downloaded bytes against the hash the sender signed before decrypting.
+- The server accepts an upload only from a participant of the conversation, and an envelope only
+  if the files it lists were uploaded by its sender into that conversation, with those sizes.
+  Downloads go only to current participants (a new room member gets the room's earlier files; a
+  member who left gets none). Limits: 10 MB per file and 200 MB per user, both configurable.
+- Images are re-encoded in the browser (at most 2048 px, WebP or JPEG), which shrinks them and
+  strips EXIF metadata such as GPS position and camera model. A thumbnail of at most 12 KB travels
+  inside the encrypted payload, so a preview shows before the full image downloads. Animated GIFs
+  are kept as they are.
+- Only PNG, JPEG, WebP and GIF are shown inline. Anything else, SVG and HTML included, is offered
+  as a download and never rendered, because decrypted files are shown from GhostChat's own origin.
+- A file is deleted when its message is deleted, with the account that sent it, or after an hour
+  if no message ever referred to it (an abandoned upload).
 
 **Emoji**: an emoji picker loaded only when opened, and messages that are only emoji (up to
 three) rendered larger. Emoji reactions, as signed chain events, are a candidate for later.
@@ -284,7 +296,8 @@ three) rendered larger. Emoji reactions, as signed chain events, are a candidate
 **Server**: salt and `authKey` login; vault storage; key-history and transparency-log endpoints
 (append, inclusion and consistency proofs, signed tree heads); envelope storage with chain
 enforcement (`409` on a stale `prev`); tombstones; receipts; rooms by ID with epochs and sealed
-keys; invite records; pre-signed URLs for MinIO/S3; OpenTimestamps job. The server verifies
+keys; invite records; encrypted file storage in GridFS with access checks, quotas and cleanup;
+OpenTimestamps job. The server verifies
 signatures on write too, so malformed or forged envelopes are rejected early; clients still verify
 everything themselves.
 
@@ -293,15 +306,18 @@ verification) with no UI dependencies; the feature-folder restructure deferred f
 (`features/auth`, `features/chat`, `features/rooms`, `features/keys`, `features/transparency`,
 shared `ui/`); the UI surfaces in §9.
 
-**Infrastructure**: MinIO in Compose; the log's signing key supplied like `JWT_SECRET`.
+**Infrastructure**: the log's signing key supplied like `JWT_SECRET`. Files live in MongoDB
+(GridFS), so there is no extra service to run.
 
 ## 11. Limitations
 
 - **No forward secrecy in v3.** A leaked encryption key exposes past messages encrypted to it.
   Key rotation limits the window; v4 replaces static keys with the Double Ratchet for direct
   messages and MLS for rooms.
-- **Metadata is visible to the server.** Who talks to whom and when, message sizes, and room
-  membership. Sealed sender is a later option.
+- **Metadata is visible to the server.** Who talks to whom and when, message and file sizes, and
+  room membership. Sealed sender is a later option.
+- **Files already downloaded stay downloaded.** A member who leaves a room, like anyone who read a
+  message, keeps what their browser already decrypted; they just can't fetch anything more.
 - **Web delivery.** The server serves the code that does the encryption. Mitigations: Subresource
   Integrity, reproducible builds with published bundle hashes, and a strict CSP. A browser
   extension that checks the bundle hash (as Meta's Code Verify does) or a packaged desktop app
@@ -335,10 +351,10 @@ shared `ui/`); the UI surfaces in §9.
   Merkle proofs, RFC 8785 canonicalisation).
 - Property-based tests for chain and log verification: random histories with random tampering
   must always be detected.
-- Backend tests: chain enforcement (`409`), tombstones, epoch rotation blocking sends, pre-signed
-  URL authorisation, signature checks on write.
+- Backend tests: chain enforcement (`409`), tombstones, epoch rotation blocking sends,
+  signature checks on write, file access, quotas and cleanup.
 - End-to-end (existing Playwright setup, parallel isolated servers):
-  - after a full conversation with attachments, the database and object store contain **no
+  - after a full conversation with attachments, the database and stored files contain **no
     plaintext** (scanned for the sent strings and file bytes);
   - the tamper script makes the UI flag the exact broken message;
   - key rotation shows "signed by previous key", a reset shows the warning;
@@ -394,12 +410,12 @@ carries 11 known vulnerabilities in its dependencies.
 | B4 | Key history: rotation with pre-rotation (asks for the recovery phrase), reset flow, profile and contact key pages, safety numbers with QR, verified contacts | Rotation shows "signed by previous key ✓"; a reset shows the warning |
 | B5 | Transparency log: Merkle tree, signed tree heads, inclusion and consistency proofs verified in the browser, split-view check via `logHead`, transparency page, daily OpenTimestamps anchoring and proof verification | A forged or rewritten log fails verification in tests |
 
-### Phase C: encrypted attachments (~1.5 days)
+### Phase C: encrypted attachments (~1.5 days) · **done**
 
 | Step | Scope | Done when |
 |---|---|---|
-| C1 | MinIO in Compose (S3 in production), pre-signed URLs for participants only, size limits, object deletion with the last reference | Non-participants can't obtain a URL |
-| C2 | Browser-side file encryption (`secretstream`), content-addressed upload, image thumbnails, attach/preview/download UI | E2E test: stored objects contain none of the uploaded bytes |
+| C1 | File storage in GridFS (instead of the planned MinIO/S3, so there is nothing extra to host or pay for), participant-only uploads and downloads, size limits and quotas, deletion with the message or the account, cleanup of abandoned uploads | Non-participants get 404 |
+| C2 | Browser-side file encryption (`secretstream`), content-addressed upload, re-encoding that strips photo metadata, encrypted thumbnails, attach/paste/drop, image viewer and downloads | E2E test: stored objects contain none of the uploaded bytes |
 
 ### Later: v4
 
