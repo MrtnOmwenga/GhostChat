@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  lazy, Suspense, useCallback, useEffect, useRef, useState,
+} from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey,
+  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile,
 } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import ChatStyle from './Conversation.module.css';
@@ -9,6 +11,9 @@ import IconButton from '../../ui/IconButton';
 import { sendText, leaveRoom } from '../../lib/messaging';
 import { conversationClosed } from './chatSlice';
 import InvitePanel from './InvitePanel';
+import { isEmojiOnly } from '../../lib/emoji';
+
+const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
 const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -20,8 +25,9 @@ const Message = ({ record, fromMe, showSender }) => {
   if (record.kind === 'unreadable') {
     return <li className={`${ChatStyle.message} ${ChatStyle.fromThem} ${ChatStyle.deleted}`}>This message could not be decrypted</li>;
   }
+  const big = isEmojiOnly(record.text);
   return (
-    <li className={`${ChatStyle.message} ${fromMe ? ChatStyle.fromMe : ChatStyle.fromThem}`}>
+    <li className={`${ChatStyle.message} ${fromMe ? ChatStyle.fromMe : ChatStyle.fromThem} ${big ? ChatStyle.bigEmoji : ''}`}>
       {showSender && <span className={ChatStyle.sender}>{record.senderName}</span>}
       <span className={ChatStyle.text}>{record.text}</span>
       <time className={ChatStyle.time} dateTime={record.createdAt}>{formatTime(record.createdAt)}</time>
@@ -32,6 +38,8 @@ const Message = ({ record, fromMe, showSender }) => {
 const Conversation = ({ user }) => {
   const [text, setText] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const input = useRef(null);
   const dispatch = useDispatch();
   const {
     active, contacts, messages, pending,
@@ -45,6 +53,29 @@ const Conversation = ({ user }) => {
     bottom.current?.scrollIntoView({ block: 'end' });
   }, [records.length, sending.length, active]);
 
+  // The composer grows with its content up to about six lines, then scrolls.
+  useEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [text]);
+
+  const insertEmoji = useCallback((emoji) => {
+    const el = input.current;
+    setText((current) => {
+      if (!el) return current + emoji;
+      const start = el.selectionStart ?? current.length;
+      const end = el.selectionEnd ?? current.length;
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(start + emoji.length, start + emoji.length);
+      });
+      return current.slice(0, start) + emoji + current.slice(end);
+    });
+  }, []);
+  const closePicker = useCallback(() => setPicking(false), []);
+
   if (!contact) {
     return (
       <section className={ChatStyle.chat}>
@@ -56,7 +87,8 @@ const Conversation = ({ user }) => {
   const isRoom = contact.kind === 'room';
 
   const submit = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
+    setPicking(false);
     const message = text.trim();
     if (!message) return;
     setText('');
@@ -79,7 +111,10 @@ const Conversation = ({ user }) => {
   };
 
   let status = contact.online ? 'Online' : 'Offline';
-  if (isRoom) status = `${contact.members?.length || 0} members`;
+  if (isRoom) {
+    const count = contact.members?.length || 0;
+    status = `${count} ${count === 1 ? 'member' : 'members'}`;
+  }
 
   return (
     <section className={ChatStyle.chat} aria-label={`Conversation with ${contact.name}`}>
@@ -110,16 +145,38 @@ const Conversation = ({ user }) => {
           <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} />
         ))}
         {sending.map((item) => (
-          <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending}`}>
+          <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending} ${isEmojiOnly(item.text) ? ChatStyle.bigEmoji : ''}`}>
             <span className={ChatStyle.text}>{item.text}</span>
             <span className={ChatStyle.time}>Sending…</span>
           </li>
         ))}
         <li ref={bottom} aria-hidden="true" />
       </ol>
+      {picking && (
+        <Suspense fallback={null}>
+          <EmojiPicker onPick={insertEmoji} close={closePicker} />
+        </Suspense>
+      )}
       <form className={ChatStyle.composer} onSubmit={submit}>
+        <button type="button" aria-label="Emoji" aria-expanded={picking} onClick={() => setPicking(!picking)}><FaRegFaceSmile aria-hidden="true" /></button>
         <label className="sr-only" htmlFor="message">Message</label>
-        <input id="message" type="text" value={text} placeholder="Type a message" maxLength={4000} autoComplete="off" onChange={(e) => setText(e.target.value)} />
+        <textarea
+          id="message"
+          ref={input}
+          rows={1}
+          value={text}
+          placeholder="Type a message"
+          maxLength={4000}
+          autoComplete="off"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter sends; Shift+Enter starts a new line.
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
         <button type="submit" aria-label="Send"><FaPaperPlane aria-hidden="true" /></button>
       </form>
       {inviting && <InvitePanel room={contact} close={() => setInviting(false)} />}

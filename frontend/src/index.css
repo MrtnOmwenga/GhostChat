@@ -42,7 +42,8 @@ img {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
   color: inherit;
 }

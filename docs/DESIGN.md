@@ -360,7 +360,11 @@ version.
 
 ## Phase plan
 
-### Phase A: encryption foundations (~4.5 days)
+### Phase A: encryption foundations (~4.5 days) · **done**
+
+Built as planned, with one change: envelopes carry their chain fields (`seq`, `prev`), and the
+server's link check and the client's automatic rebase were built here rather than in B1, so the
+message format didn't have to change twice. B1 keeps signed deletions.
 
 | Step | Scope | Done when |
 |---|---|---|
@@ -375,7 +379,7 @@ version.
 
 | Step | Scope | Done when |
 |---|---|---|
-| B1 | Hash chains: `seq`/`prev`, server enforcement, **automatic conflict resolution** in the client, signed tombstones, account-deletion record | A test sending from both sides simultaneously, repeatedly, yields one consistent chain with no user-visible error |
+| B1 | Signed tombstones (deleting a single message) and a signed account-deletion record; a concurrency test for the chain (built in phase A) | A test sending from both sides simultaneously, repeatedly, yields one consistent chain with no user-visible error |
 | B2 | Trust UI: message shield, Verify drawer, chain view; `npm run tamper` demo | E2E test: tampering with a stored message makes the UI flag exactly that message |
 | B3 | Read receipts: signed, opt-in setting, live ticks | Receipts only flow between users who have them on |
 | B4 | Key history: rotation with pre-rotation (asks for the recovery phrase), reset flow, profile and contact key pages, safety numbers with QR, verified contacts | Rotation shows "signed by previous key ✓"; a reset shows the warning |

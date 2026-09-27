@@ -2,11 +2,15 @@
 
 [![CI](https://github.com/MrtnOmwenga/GhostChat/actions/workflows/ci.yml/badge.svg)](https://github.com/MrtnOmwenga/GhostChat/actions/workflows/ci.yml)
 
-Real-time chat with disposable accounts: sign up with just a username and password (no email,
-no personal details), message people directly or in password-protected rooms, and delete the
-account when you're done.
+End-to-end encrypted chat with disposable accounts. Sign up with a username and a password, no
+email or personal details; talk directly or in invite-only rooms. Your browser encrypts and signs
+every message, and the server stores and relays ciphertext it cannot read, forge or silently
+alter.
 
-React (Vite, Redux Toolkit) · Node.js (Express 5, Socket.IO) · MongoDB · Redis · Docker
+React (Vite, Redux Toolkit) · libsodium · Node.js (Express 5, Socket.IO) · MongoDB · Redis · Docker
+
+**Design:** [docs/DESIGN.md](docs/DESIGN.md) (threat model, key management, message format,
+phases).
 
 ## Run it
 
@@ -18,51 +22,66 @@ docker compose up --build        # or: podman-compose up --build
 Open http://localhost:5000, create two accounts in two browser windows (one private), search for
 the other user and start chatting.
 
-## Features
+## What it does
 
-- **Direct messages and rooms.** Rooms have a name and a password; the creator can delete them (API).
-  Members see "<name> joined the room" when someone new joins.
-- **History that survives a reload.** Messages are stored and the last 100 of a conversation load
-  when it's opened.
-- **Presence.** Contacts show as online while they have at least one tab open.
-- **Several server instances.** With Redis configured, Socket.IO events are relayed between
-  instances (Redis adapter) and presence counts are shared.
+- **End-to-end encrypted messages.** Each message is encrypted in the sender's browser
+  (XChaCha20-Poly1305), signed with their Ed25519 key, and linked by hash to the message before it.
+  The server checks signature and link before storing; the recipient's browser checks them again
+  and decrypts.
+- **Keys you control, on any device.** Keys are derived from a 24-word recovery phrase and kept
+  in a vault encrypted with a key derived from your password (Argon2id). The server stores the
+  vault but never receives the password. Signing in on a new device restores the vault; a
+  forgotten password is recovered with the phrase.
+- **Invite-only rooms.** Each room has its own key, replaced whenever someone leaves. Invite
+  links carry their secret after the `#`, which browsers never send to the server; new members
+  read the room's whole history. Members can compare a key fingerprint shown in the header.
+- **Automatic conflict handling.** When two people send at the same instant, the one who loses
+  the race rebases onto the winner's message and resends, without the user noticing.
+- **Emoji, previews, presence, history.** An emoji picker (served from GhostChat itself, not a
+  CDN), large emoji-only messages, multi-line messages, previews decrypted in the browser,
+  online status across tabs, and history that survives a reload.
+- **Account deletion that means it.** Deleting an account erases its keys and every message it
+  sent, leaving markers so everyone else's history still verifies.
 
 ## Design
 
 ```
-Browser ── HTTPS ──► Express API ──────────► MongoDB (users, rooms, messages)
-   │                    │
-   └──── WebSocket ───► Socket.IO ◄────────► Redis (presence, cross-instance events)
+Browser (libsodium)                         Server
+───────────────────                         ──────
+password ─Argon2id─► authKey ──────────────► bcrypt(authKey)      (never the password)
+                 └─► vaultKey ─ opens ─────► encrypted vault      (private keys)
+recovery phrase ─► every key version
+                                            key history           (signed, per user)
+message ─encrypt─sign─link─► envelope ─────► checks signature, sender, chain link
+                                            MongoDB: ciphertext only
+                                            Socket.IO (+ Redis adapter) relays envelopes
 ```
 
 The built frontend is served by the same server as the API and the WebSocket, so everything is
-one origin and the session cookie never crosses sites. In development, Vite proxies `/api` and
-`/socket.io` to the backend to keep that true.
+one origin and the session cookie never crosses sites.
 
 ### Security model
 
-- **Sessions** are signed JWTs (HS256, 12 h) in an `httpOnly`, `SameSite=Strict` cookie: page
-  scripts can't read them, and other sites can't send them, which removes the need for a CSRF
-  token. The server won't start with a `JWT_SECRET` shorter than 32 characters.
-- **The WebSocket is authenticated during the handshake** from the same cookie. The sender of a
-  message always comes from the session, never from the payload, so nobody can post as someone
-  else. Room membership is checked on every message.
-- **Accounts can only be changed by their owner.** There are no `/users/:id` write routes;
-  updates and deletion go through `/users/me`.
-- **Passwords** are bcrypt-hashed (cost 12; `BCRYPT_ROUNDS` lowers it for tests only) and never leave the server; API responses are built
-  from explicit field lists. Login compares against a dummy hash for unknown usernames, so timing
-  doesn't reveal which usernames exist.
-- **Input** is validated with Joi at every boundary (REST bodies, query strings, socket
-  payloads); usernames and searches are restricted to `[A-Za-z0-9 _-]`, so no regex or query
-  operators reach MongoDB.
-- **Rate limits:** 10 login/registration attempts per IP per 15 minutes, 300 API requests per IP
-  per 15 minutes, 20 messages per connection per 10 seconds.
-- **Headers:** Helmet's defaults (CSP, HSTS, frame and MIME protections); CORS limited to
-  configured origins.
+- **Content:** only conversation participants can decrypt. An end-to-end test runs real
+  conversations and then scans the whole database for the sent text: it is never there.
+- **Integrity:** messages are signed and hash-chained; the server rejects forged or misaddressed
+  envelopes, and clients verify every signature against the sender's verified key history.
+- **Passwords:** never leave the browser. Argon2id (64 MiB, 3 passes) splits each password into
+  a login key and a vault key; sign-up requires a strong password (zxcvbn score 3 or higher),
+  because the vault is only as strong as the password protecting it.
+- **Sessions:** HS256 JWTs (12 h) in an `httpOnly`, `SameSite=Strict` cookie; the WebSocket is
+  authenticated from the same cookie during the handshake.
+- **Abuse:** rate limits on sign-in, recovery, the API and messages per connection; strict CSP
+  (WebAssembly is allowed for libsodium, JavaScript `eval` is not).
 
-**Not end-to-end encrypted.** The server stores message text and could read it; transport
-encryption comes from TLS in front of the app. End-to-end encryption is the next planned step.
+**Limits, stated plainly** (details in [DESIGN.md §11](docs/DESIGN.md#11-limitations)):
+
+- No forward secrecy yet: a leaked private key exposes messages sent to it. Planned (Double
+  Ratchet / MLS).
+- The server still sees metadata: who talks to whom, when, and message sizes.
+- Like every web app, the server delivers the code that does the encryption.
+- Verification results are computed for every message but not yet shown in the UI; the Verify
+  view, key rotation and the key transparency log are the next phase.
 
 ## Development
 
@@ -82,28 +101,28 @@ npm run dev                       # http://localhost:5173, proxies to the backen
 Tests:
 
 ```sh
-cd backend && npm test            # API + Socket.IO, against an in-memory MongoDB
-cd frontend && npm test           # chat state logic
+cd backend && npm test            # API, sockets and verification, against an in-memory MongoDB
+cd frontend && npm test           # crypto module (published test vectors) and state
 cd e2e && npm install && npx playwright install chromium && npm test   # the whole app in a browser
 ```
 
-The end-to-end suite (Playwright) starts the real server with the built frontend and an
-in-memory MongoDB, then drives it in Chromium: sign-up and sign-in, live direct messages between
-two browsers, unread markers and presence, history after a reload, rooms and join
-announcements, account deletion, the phone layout, and that no page scrolls sideways on a phone.
+- **Crypto tests** check the implementation against RFC 8032 (Ed25519), RFC 7748 (X25519),
+  FIPS 180-2 (SHA-256) and BIP-39 reference vectors. Canonical-JSON vectors and a key-history
+  fixture are shared by the frontend and backend suites, so the two implementations can't drift.
+- **Backend tests** cover chain conflicts, forged and tampered envelopes, key-history rules,
+  recovery challenges, room rotation, invites and tombstones.
+- **End-to-end tests** (Playwright) cover sign-up with the recovery phrase, weak passwords,
+  sign-in on a new device with no password on the wire, unlocking after storage is cleared,
+  password change, recovery, encrypted DMs and rooms, invite links, key rotation after someone
+  leaves, the emoji picker, and that the database holds no plaintext.
 
-**Parallel and isolated.** Each Playwright worker starts its own server on its own port with its
-own in-memory MongoDB, so tests share no data; Jest runs its suites in parallel the same way. In CI
-the end-to-end suite is split into two shards. Password hashing uses a lower bcrypt cost in tests
-only (`BCRYPT_ROUNDS`), which removed the one timing flake the suite had.
+**Parallel and isolated.** Each Playwright worker starts its own server with its own in-memory
+MongoDB; Jest runs suites in parallel the same way; CI splits the end-to-end suite into two
+shards. Password hashing uses lower costs in tests only (`BCRYPT_ROUNDS`).
 
 **Flaky tests are surfaced, not hidden.** CI retries a failed test once to tell flaky from broken,
 then fails the run anyway if it only passed on retry (`failOnFlakyTests`). A weekly
 [flake hunt](.github/workflows/flake-hunt.yml) runs every test 10 times with no retries.
-
-The backend suite covers authentication and session tampering, that no response contains a
-password hash, users only being able to change themselves, room permissions, sender spoofing,
-unauthenticated sockets, message delivery and storage, multi-tab presence, and rate limits.
 
 ### Configuration
 
@@ -121,13 +140,14 @@ unauthenticated sockets, message delivery and storage, multi-tab presence, and r
 
 | | |
 |---|---|
-| `POST /api/auth/register`, `/login`, `/logout`; `GET /api/auth/me` | session |
-| `GET /api/users/search?q=` · `PATCH /api/users/me` · `DELETE /api/users/me` | users |
-| `GET /api/rooms/mine` · `POST /api/rooms` · `POST /api/rooms/join` · `DELETE /api/rooms/:id` | rooms |
-| `GET /api/messages?with=<userId>` or `?room=<roomId>` · `GET /api/messages/conversations` | history |
+| `GET /api/auth/salt` · `POST /api/auth/register`, `/login`, `/logout`, `/password`, `/recovery` · `GET /api/auth/me`, `/vault`, `/recovery/challenge` | accounts |
+| `GET /api/users/search?q=` · `GET /api/users/:id/keys` · `DELETE /api/users/me` | users and key histories |
+| `GET /api/rooms/mine`, `/:id` · `POST /api/rooms`, `/:id/invites`, `/:id/rotate`, `/:id/leave` · `DELETE /api/rooms/:id` | rooms |
+| `GET /api/invites/:id` · `POST /api/invites/:id/accept` | invites |
+| `GET /api/messages?conversation=` · `GET /api/messages/conversations` | encrypted history |
 
-Socket events: `message` ({ to \| room, text } → ack with the stored message), `presence`
-(user ids → ack with those online; pushed on change), `announcement`.
+Socket events: `message` (a signed envelope → `ok`, `conflict` with the missed messages,
+`rotation-needed`, or `error`), `presence`, `room` (membership and key changes).
 
 ## License
 
