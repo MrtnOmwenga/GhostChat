@@ -47,6 +47,7 @@ function createApp() {
   app.use('/api/rooms', rooms);
   app.use('/api/invites', invites);
   app.use('/api/messages', require('./routes/messages'));
+  app.use('/api/keys', require('./routes/keys'));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // In production the built frontend is served from here, so the API, the WebSocket and the

@@ -113,6 +113,11 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     disconnectUser(userId) {
       io.in(userChannel(userId)).disconnectSockets(true);
     },
+    // Everyone drops their cached copy of this user's key history; the user's other devices must
+    // unlock the new vault.
+    keysChanged(userId, version) {
+      io.emit('keys-changed', { user: userId, version });
+    },
     close: () => io.close(),
   };
 }

@@ -12,7 +12,7 @@ import {
   sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
 } from './crypto';
 import {
-  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened, receiptReceived,
+  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened, receiptReceived, keysChanged,
 } from '../features/chat/chatSlice';
 
 let me = null;
@@ -503,4 +503,26 @@ export async function markRead(conversation) {
     type: 'read', reader: me.id, conversation, upToSeq: latest.seq, upToHash: latest.hash, at: new Date().toISOString(), keyVersion: myVersion(),
   }, fromB64(sodium, myKeys().signing.privateKey));
   await emitWithAck('receipt', receipt);
+}
+
+// ---- key changes (docs/DESIGN.md §5.2) -------------------------------------------------------
+
+let onOwnKeysChanged = () => {};
+// The key version this browser is creating right now. The server announces a change over the socket
+// before its HTTP reply arrives, so without this the browser would lock itself out of its own rotation.
+let expectedOwnVersion = 0;
+
+export function expectOwnKeyVersion(version) {
+  expectedOwnVersion = version;
+}
+
+/** Called when this account's keys change on another device: this browser must unlock again. */
+export function setOwnKeysChangedHandler(handler) {
+  onOwnKeysChanged = handler;
+}
+
+export function receiveKeysChanged({ user, version }) {
+  histories.delete(user);
+  store.dispatch(keysChanged({ user, version }));
+  if (me && user === me.id && version > Math.max(currentKeys()?.signing.version || 0, expectedOwnVersion)) onOwnKeysChanged();
 }

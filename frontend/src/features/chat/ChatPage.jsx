@@ -11,6 +11,7 @@ import api from '../../lib/api';
 import { connect, disconnect } from '../../lib/socket';
 import {
   startMessaging, stopMessaging, loadConversations, receiveLive, onRoomChanged, acceptInvite, receiveReceipt, markRead,
+  receiveKeysChanged, setOwnKeysChangedHandler,
 } from '../../lib/messaging';
 import { toast } from 'react-toastify';
 import { signedIn, signedOut } from '../auth/sessionSlice';
@@ -53,7 +54,17 @@ const ChatPage = () => {
         setLocked(false);
         startMessaging(me);
         await loadConversations();
-        connect({ onMessage: receiveLive, onRoom: onRoomChanged, onReceipt: receiveReceipt });
+        setOwnKeysChangedHandler(async () => {
+          await forgetKeys();
+          disconnect();
+          stopMessaging();
+          dispatch(chatReset());
+          toast.info('Your keys changed on another device. Unlock to continue.');
+          setLocked(true);
+        });
+        connect({
+          onMessage: receiveLive, onRoom: onRoomChanged, onReceipt: receiveReceipt, onKeysChanged: receiveKeysChanged,
+        });
         // An invite link opened before signing in is picked up here (see JoinPage).
         const pending = sessionStorage.getItem('pendingInvite');
         if (pending) {
