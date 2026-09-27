@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixtures');
 const { uniqueName, signUp } = require('./helpers');
 
 test('sign up, sign out, sign back in; the session survives a reload', async ({ page }) => {

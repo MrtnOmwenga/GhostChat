@@ -19,6 +19,8 @@ module.exports = {
   redisUrl: env.REDIS_URL || null,
   jwtSecret,
   sessionHours: Number(env.SESSION_HOURS) || 12,
+  // Lowered only in tests, where hundreds of sign-ups at production cost make suites slow and flaky.
+  bcryptRounds: Number(env.BCRYPT_ROUNDS) || 12,
   corsOrigins: (env.CORS_ORIGINS || 'http://localhost:5173').split(',').map((o) => o.trim()),
   staticDir: env.STATIC_DIR || null,
   rateLimits: {

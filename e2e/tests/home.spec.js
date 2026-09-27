@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixtures');
 
 test('the hero fits the first screen and links to sign up', async ({ page }) => {
   await page.goto('/');

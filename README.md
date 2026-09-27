@@ -50,7 +50,7 @@ one origin and the session cookie never crosses sites. In development, Vite prox
   else. Room membership is checked on every message.
 - **Accounts can only be changed by their owner.** There are no `/users/:id` write routes;
   updates and deletion go through `/users/me`.
-- **Passwords** are bcrypt-hashed (cost 12) and never leave the server; API responses are built
+- **Passwords** are bcrypt-hashed (cost 12; `BCRYPT_ROUNDS` lowers it for tests only) and never leave the server; API responses are built
   from explicit field lists. Login compares against a dummy hash for unknown usernames, so timing
   doesn't reveal which usernames exist.
 - **Input** is validated with Joi at every boundary (REST bodies, query strings, socket
@@ -91,6 +91,15 @@ The end-to-end suite (Playwright) starts the real server with the built frontend
 in-memory MongoDB, then drives it in Chromium: sign-up and sign-in, live direct messages between
 two browsers, unread markers and presence, history after a reload, rooms and join
 announcements, account deletion, the phone layout, and that no page scrolls sideways on a phone.
+
+**Parallel and isolated.** Each Playwright worker starts its own server on its own port with its
+own in-memory MongoDB, so tests share no data; Jest runs its suites in parallel the same way. In CI
+the end-to-end suite is split into two shards. Password hashing uses a lower bcrypt cost in tests
+only (`BCRYPT_ROUNDS`), which removed the one timing flake the suite had.
+
+**Flaky tests are surfaced, not hidden.** CI retries a failed test once to tell flaky from broken,
+then fails the run anyway if it only passed on retry (`failOnFlakyTests`). A weekly
+[flake hunt](.github/workflows/flake-hunt.yml) runs every test 10 times with no retries.
 
 The backend suite covers authentication and session tampering, that no response contains a
 password hash, users only being able to change themselves, room permissions, sender spoofing,

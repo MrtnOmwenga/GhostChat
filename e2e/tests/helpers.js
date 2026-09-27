@@ -1,4 +1,4 @@
-const { expect } = require('@playwright/test');
+const { expect } = require('./fixtures');
 
 let counter = 0;
 /** Usernames unique per test run, so parallel tests never collide. */

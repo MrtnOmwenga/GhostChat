@@ -1,0 +1,36 @@
+# Runs every end-to-end test many times with no retries, to surface flaky tests before they
+# show up in a pull request. A flaky test found here gets fixed, not retried.
+name: Flake hunt
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Runs per test
+        default: "10"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm test -- --repeat-each=${{ inputs.repeat || 10 }} --retries=0 --workers=4
+        working-directory: e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flake-report
+          path: e2e/playwright-report
