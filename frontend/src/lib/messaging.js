@@ -11,7 +11,9 @@ import { checkUserInLog, currentHead, checkPeerHead } from './log';
 import {
   sodium as loadSodium, verifyHistory, dmConversation, genesisHash, encryptPayload, decryptPayload,
   sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
+  encryptFile, decryptFile,
 } from './crypto';
+import { MAX_FILE_BYTES, formatBytes, isInlineImage, prepareFile } from './media';
 import {
   contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened, receiptReceived, keysChanged,
 } from '../features/chat/chatSlice';
@@ -23,6 +25,8 @@ const rooms = new Map(); // roomId -> room as returned by the API
 const names = new Map(); // userId -> username
 const loaded = new Set(); // conversations whose history has been fetched
 const receiptSent = new Map(); // conversation -> highest seq I've sent a receipt for
+const fileKeys = new Map(); // file id -> { key, mime } from decrypted messages
+const fileUrls = new Map(); // file id -> Promise<blob: URL of the decrypted file>
 
 export function startMessaging(user) {
   me = user;
@@ -31,7 +35,8 @@ export function startMessaging(user) {
 
 export function stopMessaging() {
   me = null;
-  [histories, roomKeys, rooms, names, loaded, receiptSent].forEach((m) => m.clear());
+  fileUrls.forEach((url) => url.then(URL.revokeObjectURL, () => {}));
+  [histories, roomKeys, rooms, names, loaded, receiptSent, fileKeys, fileUrls].forEach((m) => m.clear());
 }
 
 const myKeys = () => currentKeys();
@@ -134,10 +139,28 @@ async function toRecord(sodium, env, previous) {
       const text = (EVENT_TEXT[payload.event] || (() => ''))(base.senderName);
       return { ...base, kind: 'event', event: payload.event, text, previewText: text, verification };
     }
+    if (payload.type === 'file') return fileRecord(base, env, payload, verification);
     return { ...base, kind: 'text', text: payload.text, verification };
   } catch (error) {
     return { ...base, kind: 'unreadable', previewText: 'Message could not be decrypted', verification: { signature, link, problems: [...problems, error.message] } };
   }
+}
+
+/**
+ * A message with a file. The file key stays in this module; the record carries what the UI shows.
+ * The file named inside the encrypted payload must be the one the signed envelope lists, so the
+ * hash the sender signed is the hash the download is checked against.
+ */
+function fileRecord(base, env, payload, verification) {
+  const { key, ...file } = payload.file;
+  const listed = env.attachments?.some((a) => a.id === file.id && a.size === file.size);
+  const checked = listed ? verification : { ...verification, signature: false, problems: [...verification.problems, 'the attachment is not the one the signed envelope lists'] };
+  fileKeys.set(file.id, { key, mime: file.mime });
+  const text = payload.text || '';
+  const label = isInlineImage(file.mime) ? '📷 Photo' : `📎 ${file.name}`;
+  return {
+    ...base, kind: 'file', text, file, previewText: text ? `${label.split(' ')[0]} ${text}` : label, verification: checked,
+  };
 }
 
 /**
@@ -215,7 +238,7 @@ export async function receiveLive(env) {
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
-async function buildEnvelope(sodium, conversation, payload) {
+async function buildEnvelope(sodium, conversation, payload, attachments) {
   const records = store.getState().chat.messages[conversation] || [];
   const head = records.length ? records[records.length - 1] : { seq: 0, hash: genesisHash(sodium, conversation) };
   const body = {
@@ -228,6 +251,7 @@ async function buildEnvelope(sodium, conversation, payload) {
     createdAt: new Date().toISOString(),
   };
   if (currentHead()) body.logHead = currentHead();
+  if (attachments) body.attachments = attachments;
   if (conversation.startsWith('room:')) {
     const room = rooms.get(roomIdOf(conversation));
     body.epoch = room.epoch;
@@ -251,12 +275,12 @@ async function buildEnvelope(sodium, conversation, payload) {
  * the server returns what we missed; we apply it, re-link onto the new head, re-sign and resend
  * (docs/DESIGN.md §6.2). A room whose key must be replaced first is rotated here too.
  */
-async function sendPayload(conversation, payload) {
+async function sendPayload(conversation, payload, attachments) {
   const sodium = await loadSodium();
   if (!loaded.has(conversation)) await loadHistory(conversation);
   for (let attempt = 1; attempt <= 8; attempt += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const env = await buildEnvelope(sodium, conversation, payload);
+    const env = await buildEnvelope(sodium, conversation, payload, attachments);
     // eslint-disable-next-line no-await-in-loop
     const reply = await emitWithAck('message', env);
     if (reply.status === 'ok') {
@@ -287,6 +311,59 @@ export async function sendText(conversation, text) {
   } finally {
     store.dispatch(pendingRemoved({ conversation, tempId }));
   }
+}
+
+/**
+ * Encrypts a file in the browser, uploads the ciphertext, then sends a message carrying its key.
+ * The server only ever receives the encrypted bytes (docs/DESIGN.md §8).
+ */
+export async function sendFile(conversation, file, caption = '') {
+  // Large photos usually shrink when re-encoded, so they get some headroom before that.
+  if (file.size > (isInlineImage(file.type) ? 4 : 1) * MAX_FILE_BYTES) throw new Error(`Files can be up to ${formatBytes(MAX_FILE_BYTES)}`);
+  const tempId = `${Date.now()}-${Math.random()}`;
+  const previewUrl = isInlineImage(file.type) ? URL.createObjectURL(file) : null;
+  store.dispatch(pendingAdded({
+    conversation, tempId, text: caption, file: { name: file.name, previewUrl },
+  }));
+  try {
+    const sodium = await loadSodium();
+    if (!loaded.has(conversation)) await loadHistory(conversation);
+    const prepared = await prepareFile(file);
+    if (prepared.bytes.length > MAX_FILE_BYTES) throw new Error(`Files can be up to ${formatBytes(MAX_FILE_BYTES)}`);
+    const { key, ciphertext, id } = encryptFile(sodium, prepared.bytes);
+    await api.post('/files', new Blob([ciphertext]), { params: { conversation }, headers: { 'Content-Type': 'application/octet-stream' } });
+    // The sender already has the plaintext: no need to download and decrypt it again.
+    fileUrls.set(id, Promise.resolve(URL.createObjectURL(new Blob([prepared.bytes], { type: isInlineImage(prepared.mime) ? prepared.mime : 'application/octet-stream' }))));
+    const { bytes, ...meta } = prepared;
+    const payload = {
+      type: 'file', file: { ...meta, id, size: ciphertext.length, bytes: bytes.length, key },
+    };
+    if (caption) payload.text = caption;
+    await sendPayload(conversation, payload, [{ id, size: ciphertext.length }]);
+  } finally {
+    store.dispatch(pendingRemoved({ conversation, tempId }));
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }
+}
+
+/**
+ * The decrypted file of a message, as a blob: URL. The download is checked against the hash in the
+ * signed message before it is decrypted; a file the server altered or swapped fails here.
+ */
+export function openFile(file) {
+  if (!fileUrls.has(file.id)) {
+    const request = (async () => {
+      const known = fileKeys.get(file.id);
+      if (!known) throw new Error('this file\'s key is unavailable');
+      const sodium = await loadSodium();
+      const { data } = await api.get(`/files/${file.id}`, { responseType: 'arraybuffer' });
+      const bytes = decryptFile(sodium, known.key, new Uint8Array(data), file.id);
+      return URL.createObjectURL(new Blob([bytes], { type: isInlineImage(known.mime) ? known.mime : 'application/octet-stream' }));
+    })();
+    fileUrls.set(file.id, request);
+    request.catch(() => fileUrls.delete(file.id));
+  }
+  return fileUrls.get(file.id);
 }
 
 const sendEvent = (conversation, event) => sendPayload(conversation, { type: 'event', event }).catch(() => {});

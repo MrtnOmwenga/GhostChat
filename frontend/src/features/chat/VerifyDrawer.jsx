@@ -5,6 +5,7 @@ import IconButton from '../../ui/IconButton';
 import style from './VerifyDrawer.module.css';
 import { trustOf } from './trust';
 import { deleteMessage } from '../../lib/messaging';
+import { formatBytes } from '../../lib/media';
 
 const short = (hash) => (hash ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : '—');
 
@@ -69,6 +70,13 @@ const VerifyDrawer = ({
           <Row label="Signature">
             {v.signature === true ? 'Ed25519 signature matches the sender’s key ✓' : 'Does not verify'}
           </Row>
+          {record.kind === 'file' && (
+            <Row label="Attachment">
+              {`${record.file.name} · ${formatBytes(record.file.bytes ?? record.file.size)} · encrypted file `}
+              <code title={record.file.id}>{short(record.file.id)}</code>
+              {' (its SHA-256 is part of the signed message; the download is checked against it)'}
+            </Row>
+          )}
           {record.kind === 'deleted' && (
             <Row label="Deleted">{`${record.deleted.type === 'account-deleted' ? 'Account deleted' : 'Deleted by the author'} · ${new Date(record.deleted.at).toLocaleString()}`}</Row>
           )}

@@ -65,8 +65,8 @@ const chat = createSlice({
       }
       if (live) touch(state, conversation);
     },
-    pendingAdded(state, { payload: { conversation, tempId, text } }) {
-      state.pending[conversation] = [...(state.pending[conversation] || []), { tempId, text }];
+    pendingAdded(state, { payload: { conversation, tempId, text, file } }) {
+      state.pending[conversation] = [...(state.pending[conversation] || []), { tempId, text, ...(file ? { file } : {}) }];
     },
     pendingRemoved(state, { payload: { conversation, tempId } }) {
       state.pending[conversation] = (state.pending[conversation] || []).filter((p) => p.tempId !== tempId);

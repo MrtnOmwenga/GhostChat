@@ -4,6 +4,7 @@ const Room = require('../models/room');
 const User = require('../models/user');
 const KeyEntry = require('../models/keyEntry');
 const { objectHash, sha256Hex, verifySignature } = require('../crypto');
+const files = require('./files');
 
 const b64 = Joi.string().pattern(/^[A-Za-z0-9_-]+$/);
 const objectId = Joi.string().hex().length(24);
@@ -18,8 +19,12 @@ const envelopeSchema = Joi.object({
   senderKeyVersion: Joi.number().integer().min(1).required(),
   epoch: Joi.number().integer().min(1),
   nonce: b64.length(32).required(),
-  ciphertext: b64.max(24000).required(),
+  // Room for a text of 4,000 characters, or a file message with its embedded thumbnail.
+  ciphertext: b64.max(64000).required(),
   keys: Joi.object().pattern(objectId, Joi.object({ keyVersion: Joi.number().integer().min(1).required(), sealed: b64.length(107).required() })),
+  // The encrypted files a message refers to. Their keys are inside the ciphertext; the server only
+  // learns which stored blobs the message uses, so it can check access and delete them with it.
+  attachments: Joi.array().items(Joi.object({ id: hex64.required(), size: Joi.number().integer().min(1).required() })).min(1).max(1),
   logHead: Joi.object().unknown(true),
   createdAt: Joi.string().isoDate().required(),
   hash: hex64.required(),
@@ -78,6 +83,8 @@ async function appendEnvelope(envelope, userId) {
   if (!key || key.version !== env.senderKeyVersion) return { status: 'error', error: 'sign with your current key' };
   if (objectHash({ ...env, hash: undefined }) !== env.hash) return { status: 'error', error: 'hash does not match the envelope' };
   if (!verifySignature(key.signingKey, env.hash, env.signature)) return { status: 'error', error: 'invalid signature' };
+  const attachmentProblem = await files.checkAttachments(env, userId);
+  if (attachmentProblem) return { status: 'error', error: attachmentProblem };
 
   const head = await Message.findOne({ conversation: env.conversation }).sort({ seq: -1 });
   const headSeq = head ? head.seq : 0;

@@ -28,6 +28,10 @@ module.exports = {
   anchoring: env.ANCHORING ? env.ANCHORING === 'on' : isProduction,
   otsCalendars: (env.OTS_CALENDARS || 'https://b.pool.opentimestamps.org,https://a.pool.eternitywall.com').split(',').map((c) => c.trim()),
   esploraUrl: env.ESPLORA_URL || 'https://blockstream.info/api',
+  files: {
+    maxBytes: (Number(env.FILE_MAX_MB) || 10) * 1024 * 1024,
+    quotaBytes: (Number(env.FILE_QUOTA_MB) || 200) * 1024 * 1024,
+  },
   rateLimits: {
     apiPer15Min: Number(env.RATE_LIMIT_API) || 300,
     authPer15Min: Number(env.RATE_LIMIT_AUTH) || 10,

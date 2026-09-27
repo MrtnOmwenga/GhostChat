@@ -16,6 +16,8 @@ function createApp() {
         // libsodium runs as WebAssembly. 'wasm-unsafe-eval' allows compiling it without allowing
         // JavaScript eval.
         scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+        // Decrypted images are shown from blob: URLs created in the page.
+        imgSrc: ["'self'", 'data:', 'blob:'],
         upgradeInsecureRequests: config.secureTransport ? [] : null,
       },
     },
@@ -49,6 +51,7 @@ function createApp() {
   app.use('/api/messages', require('./routes/messages'));
   app.use('/api/keys', require('./routes/keys'));
   app.use('/api/log', require('./routes/log'));
+  app.use('/api/files', require('./routes/files'));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // In production the built frontend is served from here, so the API, the WebSocket and the
