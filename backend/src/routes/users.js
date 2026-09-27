@@ -22,6 +22,12 @@ router.get('/search', async (req, res) => {
   res.json(users);
 });
 
+router.patch('/me/settings', async (req, res) => {
+  const { receiptsEnabled } = validate(Joi.object({ receiptsEnabled: Joi.boolean().required() }), req.body);
+  const user = await User.findByIdAndUpdate(req.user.id, { receiptsEnabled }, { returnDocument: 'after' });
+  res.json(user);
+});
+
 // A user's full key history, oldest first, exactly as signed. Clients verify it themselves
 // (docs/DESIGN.md §5.2); usernames can't change in v3 because they're bound to these keys.
 router.get('/:id/keys', async (req, res) => {

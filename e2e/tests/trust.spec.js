@@ -62,3 +62,26 @@ test('the author deletes a message; everyone sees a verified, signed deletion', 
   await expect(shield(grace.page, 2)).toHaveAttribute('aria-label', /Deletion signed by the author/);
   await expect(shield(grace.page, 3)).toHaveAttribute('aria-label', /Signature and chain link verified/);
 });
+
+test('read receipts: off by default, signed and live when both people turn them on', async ({ browser }) => {
+  const [ada, grace] = await require('./helpers').twoUsers(browser);
+  const turnOn = async (page) => {
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await page.getByRole('switch', { name: /Read receipts: Off/ }).click();
+    await expect(page.getByText(/Read receipts on/)).toBeVisible();
+    await page.keyboard.press('Escape');
+  };
+  await openChatWith(ada.page, grace.name);
+  await send(ada.page, 'Did you read this?');
+  const mine = conversation(ada.page).getByRole('listitem').filter({ hasText: 'Did you read this?' }).filter({ hasNotText: 'Sending' });
+  await expect(mine.getByLabel(/Delivered|Read by/)).toHaveCount(0); // receipts are off
+
+  await turnOn(ada.page);
+  await expect(mine.getByLabel('Delivered')).toBeVisible();
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(mine.getByLabel('Delivered')).toBeVisible(); // grace's receipts are still off
+
+  await turnOn(grace.page);
+  await grace.page.getByRole('button', { name: new RegExp(ada.name) }).click();
+  await expect(mine.getByLabel(`Read by ${grace.name}`)).toBeVisible();
+});

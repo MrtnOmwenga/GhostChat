@@ -6,6 +6,7 @@ const User = require('../models/user');
 const { validate, HttpError } = require('../errors');
 const { requireAuth } = require('../auth');
 const { access, checkDeletion, tombstone } = require('../services/chain');
+const { visibleReceipts } = require('../services/receipts');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -48,6 +49,13 @@ router.get('/conversations', async (req, res) => {
     const peer = peers.get(c._id.slice(3).split(':').find((id) => id !== me));
     return peer ? { conversation: c._id, peer, last: c.envelope } : null;
   }).filter(Boolean));
+});
+
+router.get('/receipts', async (req, res) => {
+  const { conversation } = validate(historyQuery.fork(['after', 'limit'], (f) => f.strip()), req.query);
+  const receipts = await visibleReceipts(conversation, req.user.id);
+  if (!receipts) throw new HttpError(403, 'Not a participant in this conversation');
+  res.json(receipts);
 });
 
 // Deleting one message: the author signs the deletion; the content is erased and a tombstone keeps

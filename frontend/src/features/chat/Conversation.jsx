@@ -30,8 +30,14 @@ const Shield = ({ record, onVerify }) => {
   );
 };
 
+const Ticks = ({ readers }) => (
+  <span className={`${ChatStyle.ticks} ${readers.length ? ChatStyle.read : ''}`} aria-label={readers.length ? `Read by ${readers.join(', ')}` : 'Delivered'} title={readers.length ? `Read by ${readers.join(', ')}` : 'Delivered'}>
+    {readers.length ? '✓✓' : '✓'}
+  </span>
+);
+
 const Message = ({
-  record, fromMe, showSender, onVerify,
+  record, fromMe, showSender, onVerify, readers,
 }) => {
   if (record.kind === 'event') {
     return (
@@ -58,6 +64,7 @@ const Message = ({
       <span className={ChatStyle.text}>{record.text}</span>
       <span className={ChatStyle.meta}>
         <time className={ChatStyle.time} dateTime={record.createdAt}>{formatTime(record.createdAt)}</time>
+        {readers && <Ticks readers={readers} />}
         <Shield record={record} onVerify={onVerify} />
       </span>
     </li>
@@ -73,8 +80,9 @@ const Conversation = ({ user }) => {
   const input = useRef(null);
   const dispatch = useDispatch();
   const {
-    active, contacts, messages, pending,
+    active, contacts, messages, pending, receipts,
   } = useSelector((state) => state.chat);
+  const receiptsOn = useSelector((state) => state.session.user?.receiptsEnabled === true);
   const contact = active ? contacts[active] : null;
   const records = (active && messages[active]) || [];
   const sending = (active && pending[active]) || [];
@@ -118,6 +126,14 @@ const Conversation = ({ user }) => {
   }
 
   const isRoom = contact.kind === 'room';
+  const memberName = (id) => (isRoom ? contact.members?.find((m) => m.id === id)?.username : contact.name) || 'someone';
+  // Names of everyone whose signed, verified receipt covers message `seq` (receipts are reciprocal:
+  // only shown to users who have them on).
+  const readersOf = (seq) => (receiptsOn
+    ? Object.entries(receipts[contact.conversation] || {})
+      .filter(([reader, r]) => reader !== user.id && r.verified && r.upToSeq >= seq)
+      .map(([reader]) => memberName(reader))
+    : null);
 
   const submit = async (event) => {
     event?.preventDefault();
@@ -174,7 +190,7 @@ const Conversation = ({ user }) => {
       </header>
       <ol className={ChatStyle.messages}>
         {records.map((record) => (
-          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} />
+          <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} readers={record.sender === user.id ? readersOf(record.seq) : null} />
         ))}
         {sending.map((item) => (
           <li key={item.tempId} className={`${ChatStyle.message} ${ChatStyle.fromMe} ${ChatStyle.pending} ${isEmojiOnly(item.text) ? ChatStyle.bigEmoji : ''}`}>
@@ -221,6 +237,7 @@ const Conversation = ({ user }) => {
           previous={records.find((r) => r.seq === verifying - 1)}
           conversation={contact.conversation}
           isMine={records.find((r) => r.seq === verifying).sender === user.id}
+          readers={readersOf(verifying)}
           close={closeVerify}
         />
       )}

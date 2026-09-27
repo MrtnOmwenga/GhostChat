@@ -12,7 +12,7 @@ import {
   sealKey, openSealed, signEnvelope, verifyEnvelope, keyFingerprint, fromB64, toB64, utf8, signObject, verifyObject,
 } from './crypto';
 import {
-  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened,
+  contactUpserted, contactRemoved, recordsReceived, pendingAdded, pendingRemoved, conversationOpened, receiptReceived,
 } from '../features/chat/chatSlice';
 
 let me = null;
@@ -21,6 +21,7 @@ const roomKeys = new Map(); // roomId -> Map(epoch -> key bytes)
 const rooms = new Map(); // roomId -> room as returned by the API
 const names = new Map(); // userId -> username
 const loaded = new Set(); // conversations whose history has been fetched
+const receiptSent = new Map(); // conversation -> highest seq I've sent a receipt for
 
 export function startMessaging(user) {
   me = user;
@@ -29,7 +30,7 @@ export function startMessaging(user) {
 
 export function stopMessaging() {
   me = null;
-  [histories, roomKeys, rooms, names, loaded].forEach((m) => m.clear());
+  [histories, roomKeys, rooms, names, loaded, receiptSent].forEach((m) => m.clear());
 }
 
 const myKeys = () => currentKeys();
@@ -162,6 +163,7 @@ export async function processEnvelopes(conversation, envelopes, { live = false }
     records.push(record);
   }
   store.dispatch(recordsReceived({ conversation, records, meId: me.id, live }));
+  if (live) markRead(conversation);
 }
 
 export async function loadHistory(conversation) {
@@ -300,6 +302,8 @@ export const accountDeletion = () => signDeletion({ type: 'account-deleted' });
 export async function openConversation(conversation) {
   store.dispatch(conversationOpened(conversation));
   if (!loaded.has(conversation)) await loadHistory(conversation);
+  await loadReceipts(conversation).catch(() => {});
+  markRead(conversation);
 }
 
 export function startDirectChat(user) {
@@ -455,3 +459,48 @@ export async function rotateRoom(roomId) {
 export const onRoomChanged = (change) => (change.type === 'deleted'
   ? store.dispatch(contactRemoved(`room:${change.room}`))
   : refreshRoom(change.room));
+
+// ---- read receipts (docs/DESIGN.md §6.4) ------------------------------------------------------
+
+const receiptsOn = () => store.getState().session.user?.receiptsEnabled === true;
+
+/** A receipt is only trusted if the reader signed it with their key. */
+export async function receiveReceipt(receipt) {
+  const sodium = await loadSodium();
+  let verified = false;
+  try {
+    const history = await keysOf(receipt.reader, { minVersion: receipt.keyVersion });
+    verified = history.ok && verifyObject(sodium, receipt, history.entries[receipt.keyVersion - 1]?.signingKey);
+  } catch {
+    verified = false;
+  }
+  store.dispatch(receiptReceived({
+    conversation: receipt.conversation, reader: receipt.reader, upToSeq: receipt.upToSeq, at: receipt.at, verified,
+  }));
+}
+
+export async function loadReceipts(conversation) {
+  if (!receiptsOn()) return;
+  const { data } = await api.get('/messages/receipts', { params: { conversation } });
+  await Promise.all(data.filter((r) => r.reader !== me.id).map(receiveReceipt));
+}
+
+/**
+ * Tells the others I've read up to the latest message, but only when receipts are on, the
+ * conversation is open on screen, and there's something new from someone else.
+ */
+export async function markRead(conversation) {
+  if (!me || !receiptsOn() || document.visibilityState !== 'visible') return;
+  const { active, messages } = store.getState().chat;
+  if (active !== conversation) return;
+  const records = messages[conversation] || [];
+  const latest = records[records.length - 1];
+  if (!latest || latest.seq <= (receiptSent.get(conversation) || 0)) return;
+  if (!records.some((r) => r.sender !== me.id && r.seq > (receiptSent.get(conversation) || 0))) return;
+  receiptSent.set(conversation, latest.seq);
+  const sodium = await loadSodium();
+  const receipt = signObject(sodium, {
+    type: 'read', reader: me.id, conversation, upToSeq: latest.seq, upToHash: latest.hash, at: new Date().toISOString(), keyVersion: myVersion(),
+  }, fromB64(sodium, myKeys().signing.privateKey));
+  await emitWithAck('receipt', receipt);
+}

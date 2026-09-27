@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const {
-  startServer, signUp, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, randomB64, signedDeletion,
+  startServer, signUp, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, randomB64, signedDeletion, signedReceipt,
 } = require('./helpers');
 const { genesisHash } = require('../src/services/chain');
 
@@ -158,6 +158,33 @@ describe('direct messages', () => {
     expect(history[0]).toMatchObject({ seq: 1, hash: first.hash, deleted: deletion });
     expect(history[0].ciphertext).toBeUndefined();
     expect(history[1]).toEqual(second);
+  });
+});
+
+describe('read receipts', () => {
+  test('flow only between people who both have them on, and must be signed by the reader', async () => {
+    const { ada, grace, conversation } = await pair();
+    const [adaSocket, graceSocket] = [await connectAs(ada), await connectAs(grace)];
+    const sent = dm(ada, grace, conversation);
+    await emitAck(adaSocket, 'message', sent);
+
+    expect((await emitAck(graceSocket, 'receipt', signedReceipt(grace, conversation, sent))).error).toBe('read receipts are off');
+    await grace.agent.patch('/api/users/me/settings').send({ receiptsEnabled: true }).expect(200);
+    await ada.agent.patch('/api/users/me/settings').send({ receiptsEnabled: true }).expect(200);
+
+    expect((await emitAck(graceSocket, 'receipt', signedReceipt(ada, conversation, sent))).error).toMatch(/your own receipts/);
+    expect((await emitAck(graceSocket, 'receipt', { ...signedReceipt(grace, conversation, sent), upToHash: 'b'.repeat(64) })).error).toBe('no such message');
+    const forged = { ...signedReceipt(grace, conversation, sent), at: new Date(0).toISOString() };
+    expect((await emitAck(graceSocket, 'receipt', forged)).error).toMatch(/signature/);
+
+    const pushed = nextEvent(adaSocket, 'receipt');
+    const receipt = signedReceipt(grace, conversation, sent);
+    expect((await emitAck(graceSocket, 'receipt', receipt)).status).toBe('ok');
+    expect(await pushed).toEqual(receipt);
+    expect((await ada.agent.get(`/api/messages/receipts?conversation=${conversation}`)).body).toEqual([receipt]);
+
+    await ada.agent.patch('/api/users/me/settings').send({ receiptsEnabled: false });
+    expect((await ada.agent.get(`/api/messages/receipts?conversation=${conversation}`)).body).toEqual([]);
   });
 });
 
