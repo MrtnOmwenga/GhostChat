@@ -1,7 +1,7 @@
 const request = require('supertest');
 const crypto = require('crypto');
 const {
-  startServer, signUp, makeAccount, randomB64, signedDeletion,
+  startServer, signUp, makeAccount, randomB64, signedDeletion, nextEntry, keyPair, keyCommitment,
 } = require('./helpers');
 
 let server;
@@ -142,6 +142,39 @@ describe('users', () => {
     await request(server.app).post('/api/auth/login').send({ username: 'ada', authKey: ada.account.body.authKey }).expect(401);
     // Public keys remain so others can still verify ada's old signatures.
     expect((await grace.agent.get(`/api/users/${ada.user.id}/keys`).expect(200)).body).toEqual([ada.account.entry]);
+  });
+});
+
+describe('key rotation and reset', () => {
+  const vault = () => ({ nonce: randomB64(24), ciphertext: randomB64(90) });
+
+  test('a rotation must be signed by the previous key and match its commitment', async () => {
+    const { agent, account, user } = await signUp(server.app, 'ada');
+    const future = keyPair('ed25519').publicKey;
+    const honest = nextEntry(account.entry, {
+      type: 'rotate', signWith: account.signing.privateKey, signingKey: account.next.publicKey, nextKeyCommitment: keyCommitment(future),
+    });
+    const stolenKeyAttack = nextEntry(account.entry, {
+      type: 'rotate', signWith: account.signing.privateKey, signingKey: keyPair('ed25519').publicKey, nextKeyCommitment: keyCommitment(future),
+    });
+    const post = (entry, currentAuthKey = account.body.authKey) => agent.post('/api/keys/rotate').send({ currentAuthKey, entry, vault: vault() });
+
+    await post(honest, randomB64(32)).expect(401);
+    expect((await post(stolenKeyAttack).expect(400)).body.error).toMatch(/pre-rotation commitment/);
+    await post(honest).expect(201);
+    const history = (await agent.get(`/api/users/${user.id}/keys`)).body;
+    expect(history.map((e) => [e.version, e.type])).toEqual([[1, 'create'], [2, 'rotate']]);
+    await post(honest).expect(400); // version out of sequence now
+  });
+
+  test('a reset is self-signed and needs the password', async () => {
+    const { agent, account } = await signUp(server.app, 'ada');
+    const fresh = keyPair('ed25519');
+    const reset = nextEntry(account.entry, {
+      type: 'reset', signWith: fresh.privateKey, signingKey: fresh.publicKey, nextKeyCommitment: keyCommitment(keyPair('ed25519').publicKey),
+    });
+    await agent.post('/api/keys/rotate').send({ currentAuthKey: account.body.authKey, entry: reset, vault: vault() }).expect(400);
+    await agent.post('/api/keys/reset').send({ currentAuthKey: account.body.authKey, entry: reset, vault: vault() }).expect(201);
   });
 });
 

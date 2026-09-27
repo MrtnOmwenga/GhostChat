@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile, FaLink, FaShieldHalved, FaTriangleExclamation,
+  FaArrowLeftLong, FaPaperPlane, FaUserPlus, FaDoorOpen, FaKey, FaRegFaceSmile, FaLink, FaShieldHalved, FaTriangleExclamation, FaFingerprint,
 } from 'react-icons/fa6';
 import { toast } from 'react-toastify';
 import ChatStyle from './Conversation.module.css';
@@ -15,6 +15,9 @@ import { isEmojiOnly } from '../../lib/emoji';
 import { trustOf } from './trust';
 import VerifyDrawer from './VerifyDrawer';
 import ChainView from './ChainView';
+import ContactKeysPanel from '../keys/ContactKeysPanel';
+import { keysOf } from '../../lib/messaging';
+import { verificationStatus } from '../../lib/keys';
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
@@ -77,6 +80,12 @@ const Conversation = ({ user }) => {
   const [picking, setPicking] = useState(false);
   const [verifying, setVerifying] = useState(null); // seq of the message shown in the Verify drawer
   const [chainOpen, setChainOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [keyNotice, setKeyNotice] = useState(null);
+  const keyChange = useSelector((state) => {
+    const open = state.chat.active && state.chat.contacts[state.chat.active];
+    return open?.kind === 'user' ? state.chat.keyChanges[open.id] : undefined;
+  });
   const input = useRef(null);
   const dispatch = useDispatch();
   const {
@@ -99,6 +108,22 @@ const Conversation = ({ user }) => {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [text]);
+
+  // What a DM partner's key history says about them: verified contacts whose keys changed without
+  // authorisation get a warning; a reset or rotation since the start is shown as a notice.
+  const peerId = contact?.kind === 'user' ? contact.id : null;
+  useEffect(() => {
+    setKeyNotice(null);
+    if (!peerId) return;
+    keysOf(peerId).then((history) => {
+      const status = verificationStatus(user.id, peerId, history);
+      const last = history.events[history.events.length - 1];
+      if (!history.ok) setKeyNotice({ level: 'bad', text: `This person's key history does not verify: ${history.problems[0]}` });
+      else if (status === 'changed') setKeyNotice({ level: 'bad', text: 'Their keys changed in a way the key you verified did not authorise. Compare safety numbers again.' });
+      else if (last.type === 'reset') setKeyNotice({ level: 'warn', text: `Keys were reset on ${new Date(last.createdAt).toLocaleDateString()}: compare safety numbers before sharing anything sensitive.` });
+      else if (last.type === 'rotate') setKeyNotice({ level: 'info', text: `Keys rotated on ${new Date(last.createdAt).toLocaleDateString()} · signed by their previous key ✓` });
+    }).catch(() => {});
+  }, [peerId, user.id, keyChange, keysOpen]);
 
   const insertEmoji = useCallback((emoji) => {
     const el = input.current;
@@ -183,11 +208,19 @@ const Conversation = ({ user }) => {
           </p>
         </div>
         <div className={ChatStyle.actions}>
+          {!isRoom && <IconButton icon={FaFingerprint} label="Keys and safety number" onClick={() => setKeysOpen(true)} />}
           <IconButton icon={FaLink} label="Show the message chain" onClick={() => setChainOpen(true)} />
           {isRoom && <IconButton icon={FaUserPlus} label="Invite people" onClick={() => setInviting(true)} />}
           {isRoom && <IconButton icon={FaDoorOpen} label="Leave room" onClick={leave} />}
         </div>
       </header>
+      {keyNotice && (
+        <p className={`${ChatStyle.keyNotice} ${ChatStyle[`notice_${keyNotice.level}`]}`} role={keyNotice.level === 'bad' ? 'alert' : 'status'}>
+          {keyNotice.text}
+          {' '}
+          <button type="button" onClick={() => setKeysOpen(true)}>View keys</button>
+        </p>
+      )}
       <ol className={ChatStyle.messages}>
         {records.map((record) => (
           <Message key={record.seq} record={record} fromMe={record.sender === user.id} showSender={isRoom && record.sender !== user.id} onVerify={() => setVerifying(record.seq)} readers={record.sender === user.id ? readersOf(record.seq) : null} />
@@ -228,6 +261,7 @@ const Conversation = ({ user }) => {
         <button type="submit" aria-label="Send"><FaPaperPlane aria-hidden="true" /></button>
       </form>
       {inviting && <InvitePanel room={contact} close={() => setInviting(false)} />}
+      {keysOpen && <ContactKeysPanel contact={contact} close={() => setKeysOpen(false)} />}
       {chainOpen && (
         <ChainView conversation={contact.conversation} title={contact.name} close={closeChain} onSelect={(seq) => { setChainOpen(false); setVerifying(seq); }} />
       )}

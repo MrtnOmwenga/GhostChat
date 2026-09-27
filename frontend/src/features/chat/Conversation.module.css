@@ -246,3 +246,24 @@
     display: inline-grid;
   }
 }
+
+.keyNotice {
+  margin: 0.5rem clamp(0.75rem, 3vw, 2rem) 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.keyNotice button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.notice_bad { background: rgba(255, 122, 122, 0.12); color: var(--danger); }
+.notice_warn { background: rgba(242, 193, 78, 0.12); color: #F2C14E; }
+.notice_info { background: rgba(137, 210, 220, 0.1); color: var(--accent); }

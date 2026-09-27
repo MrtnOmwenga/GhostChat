@@ -9,6 +9,7 @@ const { createRealtime } = require('../src/realtime');
 const { MemoryPresence } = require('../src/presence');
 const { didFromSigningKey, keyCommitment, objectHash } = require('../src/crypto');
 
+
 /** Starts the full server (HTTP + Socket.IO) on a random port against an in-memory MongoDB. */
 async function startServer() {
   const mongo = await MongoMemoryServer.create();
@@ -44,6 +45,24 @@ function keyPair(type) {
   return { publicKey: publicKey.export({ format: 'jwk' }).x, privateKey };
 }
 
+/** A signed rotation or reset entry following `previous`. */
+function nextEntry(previous, { type, signWith, signingKey, nextKeyCommitment }) {
+  const entry = {
+    type,
+    username: previous.username,
+    did: previous.did,
+    version: previous.version + 1,
+    signingKey,
+    encryptionKey: keyPair('x25519').publicKey,
+    nextKeyCommitment,
+    prev: objectHash(previous),
+    reason: type === 'rotate' ? 'routine' : 'lost phrase',
+    createdAt: new Date().toISOString(),
+  };
+  entry.signature = b64(crypto.sign(null, Buffer.from(objectHash(entry)), signWith));
+  return entry;
+}
+
 /**
  * What a client would generate for a new account: a signed version 1 key entry committing to a
  * version 2 key, plus the random material the server stores but can't interpret.
@@ -66,6 +85,7 @@ function makeAccount(username) {
   entry.signature = b64(crypto.sign(null, Buffer.from(objectHash(entry)), signing.privateKey));
   return {
     signing,
+    next,
     entry,
     body: {
       username, salt: randomB64(16), authKey: randomB64(32), vault: { nonce: randomB64(24), ciphertext: randomB64(80) }, keyEntry: entry,
@@ -140,5 +160,5 @@ const nextEvent = (socket, event) => new Promise((resolve) => { socket.once(even
 const emitAck = (socket, event, payload) => new Promise((resolve) => { socket.emit(event, payload, resolve); });
 
 module.exports = {
-  startServer, signUp, makeAccount, randomB64, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, signedDeletion, signedReceipt,
+  startServer, signUp, makeAccount, randomB64, nextEntry, keyPair, keyCommitment, connectSocket, nextEvent, emitAck, envelope, dmOf, sealedKey, signedDeletion, signedReceipt,
 };

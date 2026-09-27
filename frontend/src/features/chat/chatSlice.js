@@ -14,6 +14,7 @@ const initialState = {
   messages: {},
   pending: {}, // conversation -> [{ tempId, text }]
   receipts: {}, // conversation -> readerId -> { upToSeq, at, verified }
+  keyChanges: {}, // userId -> latest key version announced; key views re-read histories when it moves
 };
 
 const touch = (state, conversation) => {
@@ -75,12 +76,15 @@ const chat = createSlice({
         state.receipts[conversation] = { ...byReader, [reader]: { upToSeq, at, verified } };
       }
     },
+    keysChanged(state, { payload: { user, version } }) {
+      state.keyChanges[user] = version;
+    },
     chatReset: () => initialState,
   },
 });
 
 export const {
   contactUpserted, contactRemoved, presenceChanged, conversationOpened, conversationClosed,
-  recordsReceived, pendingAdded, pendingRemoved, receiptReceived, chatReset,
+  recordsReceived, pendingAdded, pendingRemoved, receiptReceived, keysChanged, chatReset,
 } = chat.actions;
 export default chat.reducer;

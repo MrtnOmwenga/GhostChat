@@ -5,7 +5,7 @@ import keyHistoryFixture from '../../../../test-vectors/key-history.json';
 import {
   sodium as loadSodium, canonical, sha256Hex, toB64, fromB64, didFromSigningKey,
   generatePhrase, isValidPhrase, seedFromPhrase, deriveKeys, splitPassword, newSalt,
-  sealVault, openVault, vaultContents, createAccountEntry, buildEntry, verifyHistory, passwordStrength,
+  sealVault, openVault, vaultContents, createAccountEntry, buildEntry, verifyHistory, passwordStrength, safetyNumber,
 } from '.';
 
 let sodium;
@@ -160,5 +160,16 @@ describe('key history', () => {
     expect(verifyHistory(sodium, [{ ...first, username: 'mallory' }]).ok).toBe(false);
     const second = rotate(seed, first);
     expect(verifyHistory(sodium, [first, { ...second, prev: 'f'.repeat(64) }]).ok).toBe(false);
+  });
+});
+
+describe('safety numbers', () => {
+  test('both users see the same 60 digits; any key change alters them', () => {
+    const a = { did: 'did:key:zA', signingKey: 'keyA' };
+    const b = { did: 'did:key:zB', signingKey: 'keyB' };
+    const number = safetyNumber(sodium, a, b);
+    expect(number).toMatch(/^(\d{5} ){11}\d{5}$/);
+    expect(safetyNumber(sodium, b, a)).toBe(number);
+    expect(safetyNumber(sodium, a, { ...b, signingKey: 'keyB2' })).not.toBe(number);
   });
 });

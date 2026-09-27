@@ -45,8 +45,10 @@ async function twoUsers(browser, options = {}) {
     const page = await context.newPage();
     const name = uniqueName(prefix);
     // eslint-disable-next-line no-await-in-loop
-    await signUp(page, name);
-    users.push({ page, name, context });
+    const phrase = await signUp(page, name);
+    users.push({
+      page, name, context, phrase,
+    });
   }
   return users;
 }
