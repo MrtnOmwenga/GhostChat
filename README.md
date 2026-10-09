@@ -148,6 +148,8 @@ npm run dev                       # http://localhost:5173, proxies to the backen
 | `CORS_ORIGINS` | `http://localhost:5173` | comma-separated |
 | `SESSION_HOURS` | `12` | |
 | `SECURE_COOKIES` | `true` in production | set `false` only for plain-HTTP local runs |
+| `EDGE_SECRET` | unset | when set, only requests carrying it in `X-Edge-Secret` are served (health check apart): the reverse proxy in front sends it, so the server's own address can't be used to go around the proxy |
+| `CLIENT_IP_HEADER` | unset | the header the proxy puts the visitor's address in, used for rate limits; needs `EDGE_SECRET` |
 | `STATIC_DIR` | unset | serve the built frontend from this folder |
 | `LOG_SIGNING_KEY` | derived from `JWT_SECRET` | 64 hex characters; the transparency log's Ed25519 seed |
 | `ANCHORING` | `on` in production | daily OpenTimestamps anchoring of the log |

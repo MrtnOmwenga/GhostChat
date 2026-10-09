@@ -4,6 +4,7 @@ const Room = require('./models/room');
 const { appendEnvelope } = require('./services/chain');
 const { recordReceipt } = require('./services/receipts');
 const { sessionFromCookieHeader } = require('./auth');
+const { fromEdge } = require('./edge');
 
 const userChannel = (id) => `user:${id}`;
 const roomChannel = (id) => `room:${id}`;
@@ -21,6 +22,7 @@ const sessionChannel = (id) => `session:${id}`;
 function createRealtime(httpServer, { presence, adapter } = {}) {
   const io = new Server(httpServer, {
     cors: { origin: config.corsOrigins, credentials: true },
+    allowRequest: (req, callback) => callback(null, fromEdge(req.headers)),
     ...(adapter ? { adapter } : {}),
   });
 
