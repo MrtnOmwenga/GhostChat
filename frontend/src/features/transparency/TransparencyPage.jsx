@@ -6,6 +6,7 @@ import IconButton from '../../ui/IconButton';
 import style from './TransparencyPage.module.css';
 import api from '../../lib/api';
 import { acceptHead } from '../../lib/log';
+import { checkBundle } from '../../lib/code';
 import { keysOf } from '../../lib/messaging';
 import { sodium as loadSodium, signingFingerprint } from '../../lib/crypto';
 
@@ -42,6 +43,8 @@ const TransparencyPage = () => {
   const [entries, setEntries] = useState([]);
   const [anchors, setAnchors] = useState([]);
   const [mine, setMine] = useState(null);
+  const [code, setCode] = useState(null);
+  const [build, setBuild] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -60,6 +63,9 @@ const TransparencyPage = () => {
         setMine({ paths: history.logPaths.filter(Boolean), head: history.logHead });
       }
     })().catch(() => {});
+    // Not there when the client is served by the development server: nothing to show then.
+    checkBundle().then(setCode).catch(() => {});
+    api.get('/code').then((r) => setBuild(r.data)).catch(() => {});
   }, []);
 
   return (
@@ -120,6 +126,34 @@ const TransparencyPage = () => {
           )}
           <p className={style.muted}>Verify a proof yourself with the OpenTimestamps client: <code>ots verify -d &lt;root hash&gt; proof.ots</code></p>
         </section>
+
+        {code && (
+          <section className={style.card} aria-label="The code this browser is running">
+            <h2>The code this browser is running</h2>
+            {code.changed.length === 0 && code.listMatchesDigest ? (
+              <p className={style.ok}><FaCircleCheck aria-hidden="true" />{` All ${code.files} files the server just sent match this build`}</p>
+            ) : (
+              <p className={style.bad}>
+                <FaTriangleExclamation aria-hidden="true" />
+                {code.changed.length ? ` Not the published build: ${code.changed.join(', ')} differ` : ' The file list does not match its own digest'}
+              </p>
+            )}
+            <dl className={style.facts}>
+              <dt>Build</dt><dd><code>{code.digest}</code></dd>
+              {build?.commit && <><dt>Source</dt><dd><a href={`${build.repository}/commit/${build.commit}`} target="_blank" rel="noreferrer">{build.commit.slice(0, 12)}</a></dd></>}
+            </dl>
+            <p className={style.muted}>
+              The messages are encrypted by code this server sends, so a server that turned hostile could send different code. Each release
+              signs this build&apos;s digest into Sigstore&apos;s public log, which the server doesn&apos;t control. This page can only tell you
+              what it was sent; the check that counts is made from outside it:
+            </p>
+            <p><code>{`cosign verify ${build?.image ?? 'ghcr.io/mrtnomwenga/ghostchat'}:main -a bundle=${code.digest} --certificate-identity-regexp 'github.com/MrtnOmwenga/GhostChat' --certificate-oidc-issuer https://token.actions.githubusercontent.com`}</code></p>
+            <p className={style.muted}>
+              It succeeds only if GhostChat&apos;s release workflow signed an image carrying exactly this build. To compare with what your
+              browser received without trusting this page: <code>curl -s {window.location.origin}/assets/… | sha256sum</code> against <a href="/bundle.json">bundle.json</a>.
+            </p>
+          </section>
+        )}
 
         <section className={style.card} aria-label="Recent log entries">
           <h2>Recent entries</h2>

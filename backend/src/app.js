@@ -64,6 +64,10 @@ function createApp() {
   app.use('/api/keys', require('./routes/keys'));
   app.use('/api/log', require('./routes/log'));
   app.use('/api/files', require('./routes/files'));
+  // Which source this server was built from; the client's own build digest is in /bundle.json.
+  app.get('/api/code', (req, res) => res.json({
+    commit: config.commit, repository: 'https://github.com/MrtnOmwenga/GhostChat', image: 'ghcr.io/mrtnomwenga/ghostchat',
+  }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // In production the built frontend is served from here, so the API, the WebSocket and the

@@ -281,6 +281,11 @@ describe('key rotation and reset', () => {
   });
 });
 
+test('the server says which source it was built from, when it was told', async () => {
+  const { body } = await request(server.app).get('/api/code').expect(200);
+  expect(body).toEqual({ commit: null, repository: 'https://github.com/MrtnOmwenga/GhostChat', image: 'ghcr.io/mrtnomwenga/ghostchat' });
+});
+
 test('unknown API routes return JSON 404s', async () => {
   const res = await request(server.app).get('/api/nope').expect(404);
   expect(res.body).toEqual({ error: 'Not found' });

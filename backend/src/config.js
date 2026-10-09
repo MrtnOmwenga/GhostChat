@@ -34,6 +34,7 @@ module.exports = {
   bcryptRounds: Number(env.BCRYPT_ROUNDS) || 12,
   corsOrigins: (env.CORS_ORIGINS || 'http://localhost:5173').split(',').map((o) => o.trim()),
   staticDir: env.STATIC_DIR || null,
+  commit: /^[0-9a-f]{40}$/.test(env.GIT_COMMIT || '') ? env.GIT_COMMIT : null,
   logSigningKey: env.LOG_SIGNING_KEY || null,
   // Daily OpenTimestamps anchoring of the key log; on in production unless ANCHORING=off.
   anchoring: env.ANCHORING ? env.ANCHORING === 'on' : isProduction,

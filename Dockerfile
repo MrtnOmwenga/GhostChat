@@ -7,7 +7,9 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM node:22-alpine
-ENV NODE_ENV=production STATIC_DIR=/app/public
+# The commit this image was built from, shown beside the client's build digest.
+ARG GIT_COMMIT=
+ENV NODE_ENV=production STATIC_DIR=/app/public GIT_COMMIT=$GIT_COMMIT
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev

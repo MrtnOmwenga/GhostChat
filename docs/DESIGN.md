@@ -340,9 +340,20 @@ are only emoji render larger.
   room membership.
 - **Files already downloaded stay downloaded.** A member who leaves a room, like anyone who read a
   message, keeps what their browser already decrypted; they just can't fetch anything more.
-- **Web delivery.** The server serves the code that does the encryption. A strict CSP limits what
-  that code can load; a browser extension that checks the bundle hash (as Meta's Code Verify
-  does), reproducible builds, or a packaged desktop app would close more of the gap.
+- **Web delivery.** The server serves the code that does the encryption, so a server that turned
+  hostile could serve code that leaks keys. A strict CSP limits what the page can load. What can
+  be done about the rest is to make *which code was published* a public fact:
+  - The client build is reproducible. Its files and their hashes are listed in `bundle.json`, and
+    one digest over the list names the build. The release builds the client twice, in the image
+    and outside it, and stops if the two differ.
+  - The release signs the image into Sigstore's public log with that digest attached, under the
+    identity of this repository's release workflow. The server doesn't control that log.
+  - The transparency page re-fetches every file, compares it with the list, and gives the
+    command that checks the digest against the public record.
+
+  This makes a change detectable by anyone who looks from outside. It doesn't make each browser
+  check before running the code: a page can't verify the server that sent the page. That needs
+  something the server didn't send, such as a browser extension, and is not built.
 - **Account deletion keeps public keys.** Messages, files, the vault and private keys are erased,
   but the username and public keys stay in the transparency log, which is append-only by design.
 - **The log is recomputed per request.** Fine for a small deployment; a large one would cache

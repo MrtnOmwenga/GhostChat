@@ -79,9 +79,27 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
+          build-args: GIT_COMMIT=${{ env.SHA }}
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      # The client is built a second time, here, outside the image. If the two builds differ, the
+      # build isn't reproducible and the release stops: the digest would then prove nothing to
+      # someone rebuilding from source.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: { node-version: 22 }
+      - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+      - name: The client build is reproducible
+        id: bundle
+        run: |
+          (cd frontend && npm ci && npm run build)
+          rebuilt=$(jq -r .digest frontend/dist/bundle.json)
+          shipped=$(crane export --platform linux/amd64 "${{ steps.tags.outputs.image }}@${{ steps.build.outputs.digest }}" - | tar -xO app/public/bundle.json | jq -r .digest)
+          echo "rebuilt from source: $rebuilt"; echo "in the image:        $shipped"
+          [ -n "$rebuilt" ] && [ "$rebuilt" = "$shipped" ] || { echo "The client in the image is not the one this source builds."; exit 1; }
+          echo "digest=$rebuilt" >> "$GITHUB_OUTPUT"
+      # The signature goes into Sigstore's public log with the client's build digest attached, so
+      # which client was published is a public, append-only record the server doesn't control.
       - name: Sign
-        run: cosign sign --yes "${{ steps.tags.outputs.image }}@${{ steps.build.outputs.digest }}"
+        run: cosign sign --yes -a "bundle=${{ steps.bundle.outputs.digest }}" -a "commit=$SHA" "${{ steps.tags.outputs.image }}@${{ steps.build.outputs.digest }}"
 
   deploy:
     needs: image
