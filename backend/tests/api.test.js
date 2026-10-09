@@ -63,6 +63,46 @@ describe('auth', () => {
     await agent.get('/api/auth/me').expect(401);
   });
 
+  test('signing out ends the session on the server: a copy of the cookie stops working', async () => {
+    const { agent, cookie } = await signUp(server.app, 'ada');
+    const elsewhere = () => request(server.app).get('/api/auth/me').set('Cookie', cookie);
+    await elsewhere().expect(200);
+    await agent.post('/api/auth/logout').expect(204);
+    await elsewhere().expect(401);
+  });
+
+  test('each sign-in is its own session; signing out of one leaves the other', async () => {
+    const { account } = await signUp(server.app, 'ada');
+    const login = async () => {
+      const agent = request.agent(server.app);
+      await agent.post('/api/auth/login').send({ username: 'ada', authKey: account.body.authKey }).expect(200);
+      return agent;
+    };
+    const [laptop, phone] = [await login(), await login()];
+    await laptop.post('/api/auth/logout').expect(204);
+    await laptop.get('/api/auth/me').expect(401);
+    await phone.get('/api/auth/me').expect(200);
+  });
+
+  test('a session token is refused once its row is gone, or if it names no session', async () => {
+    const { cookie, user } = await signUp(server.app, 'ada');
+    const jwt = require('jsonwebtoken');
+    const config = require('../src/config');
+    const signed = (claims) => `ghostchat_session=${jwt.sign(claims, config.jwtSecret, { algorithm: 'HS256', expiresIn: '1h' })}`;
+    const me = (c) => request(server.app).get('/api/auth/me').set('Cookie', c);
+    // Correctly signed, as the server before sessions were rows would have issued it.
+    await me(signed({ sub: user.id, username: 'ada' })).expect(401);
+    await me(signed({ sub: user.id, username: 'ada', sid: 'not-an-id' })).expect(401);
+    await me(signed({ sub: user.id, username: 'ada', sid: '0123456789abcdef01234567' })).expect(401);
+    // Someone else's session can't be claimed under another user's name.
+    const other = await signUp(server.app, 'grace');
+    const theirs = jwt.decode(other.cookie.split('=')[1]).sid;
+    await me(signed({ sub: user.id, username: 'ada', sid: theirs })).expect(401);
+    await me(cookie).expect(200);
+    await require('../src/models/session').deleteMany({ user: user.id });
+    await me(cookie).expect(401);
+  });
+
   test('a password change needs the current authKey and replaces salt, authKey and vault', async () => {
     const { agent, account } = await signUp(server.app, 'ada');
     const change = { salt: randomB64(16), authKey: randomB64(32), vault: { nonce: randomB64(24), ciphertext: randomB64(90) } };
@@ -71,6 +111,16 @@ describe('auth', () => {
     await request(server.app).post('/api/auth/login').send({ username: 'ada', authKey: account.body.authKey }).expect(401);
     const res = await request(server.app).post('/api/auth/login').send({ username: 'ada', authKey: change.authKey }).expect(200);
     expect(res.body.vault).toEqual(change.vault);
+  });
+
+  test('changing the password signs out every other device, and keeps this one', async () => {
+    const { agent, account } = await signUp(server.app, 'ada');
+    const other = request.agent(server.app);
+    await other.post('/api/auth/login').send({ username: 'ada', authKey: account.body.authKey }).expect(200);
+    const change = { salt: randomB64(16), authKey: randomB64(32), vault: { nonce: randomB64(24), ciphertext: randomB64(90) } };
+    await agent.post('/api/auth/password').send({ ...change, currentAuthKey: account.body.authKey }).expect(204);
+    await agent.get('/api/auth/me').expect(200);
+    await other.get('/api/auth/me').expect(401);
   });
 
   test('recovery needs a signature over a fresh challenge with the current signing key', async () => {
@@ -86,6 +136,18 @@ describe('auth', () => {
     const ok = await recover(account.signing.privateKey);
     expect(ok.status).toBe(200);
     expect(ok.headers['set-cookie'][0]).toMatch(/ghostchat_session=/);
+  });
+
+  test('recovering an account ends every session that was open on it', async () => {
+    const { agent, account } = await signUp(server.app, 'ada');
+    const { body } = await request(server.app).get('/api/auth/recovery/challenge?username=ada');
+    const signature = crypto.sign(null, Buffer.from(`ghostchat-recovery:${body.challenge}`), account.signing.privateKey).toString('base64url');
+    const recovered = request.agent(server.app);
+    await recovered.post('/api/auth/recovery').send({
+      username: 'ada', challenge: body.challenge, signature, salt: randomB64(16), authKey: randomB64(32), vault: { nonce: randomB64(24), ciphertext: randomB64(90) },
+    }).expect(200);
+    await agent.get('/api/auth/me').expect(401);
+    await recovered.get('/api/auth/me').expect(200);
   });
 
   test('a recovery challenge can only be used once', async () => {

@@ -8,7 +8,9 @@ const KeyEntry = require('../models/keyEntry');
 const Challenge = require('../models/challenge');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
-const { setSessionCookie, clearSessionCookie, requireAuth } = require('../auth');
+const {
+  startSession, clearSessionCookie, requireAuth, sessionFromCookieHeader, endSessions,
+} = require('../auth');
 const { checkKeyEntry, verifySignature } = require('../crypto');
 const log = require('../services/log');
 
@@ -52,7 +54,7 @@ router.post('/register', authLimiter, async (req, res) => {
   });
   await KeyEntry.create({ user: user.id, version: 1, entry: body.keyEntry });
   await log.append(user.id, user.username, body.keyEntry);
-  setSessionCookie(res, user);
+  await startSession(res, user);
   res.status(201).json(user);
 });
 
@@ -62,11 +64,15 @@ router.post('/login', authLimiter, async (req, res) => {
   // Compare against a dummy hash for unknown users so response time doesn't reveal which exist.
   const ok = await bcrypt.compare(authKey, user ? user.authHash : DUMMY_HASH);
   if (!user || !ok) throw new HttpError(401, 'Incorrect username or password');
-  setSessionCookie(res, user);
+  await startSession(res, user);
   res.json({ user, vault: user.vault });
 });
 
-router.post('/logout', (req, res) => {
+// Signing out ends the session on the server, not only in this browser: the row is deleted, so
+// a copy of the cookie stops working, and the session's open sockets are closed.
+router.post('/logout', async (req, res) => {
+  const session = await sessionFromCookieHeader(req.headers.cookie);
+  if (session) await endSessions({ _id: session.sessionId }, req.app.get('realtime'));
   clearSessionCookie(res);
   res.status(204).end();
 });
@@ -95,6 +101,8 @@ router.post('/password', requireAuth, authLimiter, async (req, res) => {
   user.authHash = await bcrypt.hash(body.authKey, config.bcryptRounds);
   user.vault = body.vault;
   await user.save();
+  // Whoever else is signed in as this user was signed in with the old password.
+  await endSessions({ user: user.id, _id: { $ne: req.user.sessionId } }, req.app.get('realtime'));
   res.status(204).end();
 });
 
@@ -122,7 +130,8 @@ router.post('/recovery', authLimiter, async (req, res) => {
   user.authHash = await bcrypt.hash(body.authKey, config.bcryptRounds);
   user.vault = body.vault;
   await user.save();
-  setSessionCookie(res, user);
+  await endSessions({ user: user.id }, req.app.get('realtime'));
+  await startSession(res, user);
   res.json({ user });
 });
 
