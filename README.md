@@ -83,7 +83,7 @@ each part in detail.
 - No forward secrecy yet: a leaked private key exposes messages sent to it. The Double Ratchet and
   MLS are the next step.
 - The server still sees metadata: who talks to whom, when, and message and file sizes.
-- Like every web app, the server delivers the code that does the encryption.
+- Like every web app, the server delivers the code that does the encryption. Which code was published is a public record: the client build is reproducible, and each release signs its digest into Sigstore's log. The transparency page shows the digest and how to check it. A browser still can't check before running the code.
 - Signatures prove authorship to anyone (no deniability): GhostChat chooses verifiability.
 
 ## Run it
