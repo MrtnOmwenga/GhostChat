@@ -8,12 +8,14 @@ import IconButton from '../../ui/IconButton';
 import style from './Keys.module.css';
 import KeyHistoryList from './KeyHistoryList';
 import { keysOf } from '../../lib/messaging';
-import { markVerified, unmarkVerified, verificationStatus } from '../../lib/keys';
+import {
+  markVerified, unmarkVerified, verificationStatus, pinsSynced,
+} from '../../lib/keys';
 import { sodium as loadSodium, safetyNumber, signingFingerprint } from '../../lib/crypto';
 
 /**
  * A contact's keys and the safety number to compare in person (docs/DESIGN.md §5.4). Marking a
- * contact verified pins their current key in this browser.
+ * contact verified pins their current key, on every device the account is used from.
  */
 const ContactKeysPanel = ({ contact, close }) => {
   const me = useSelector((state) => state.session.user);
@@ -24,7 +26,7 @@ const ContactKeysPanel = ({ contact, close }) => {
   useEffect(() => {
     (async () => {
       const sodium = await loadSodium();
-      const [theirs, mine] = await Promise.all([keysOf(contact.id), keysOf(me.id)]);
+      const [theirs, mine] = await Promise.all([keysOf(contact.id), keysOf(me.id), pinsSynced()]);
       const number = safetyNumber(sodium, { did: mine.did, signingKey: mine.current.signingKey }, { did: theirs.did, signingKey: theirs.current.signingKey });
       setData({
         history: theirs, number, fingerprint: signingFingerprint(sodium, theirs.current.signingKey), qr: await QRCode.toDataURL(number, { margin: 1, width: 180 }),

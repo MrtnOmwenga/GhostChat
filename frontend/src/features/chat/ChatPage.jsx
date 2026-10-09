@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import { signedIn, signedOut } from '../auth/sessionSlice';
 import { chatReset } from './chatSlice';
 import { loadKeys, forgetKeys } from '../../lib/keystore';
+import { syncPins } from '../../lib/keys';
 import UnlockPanel from '../auth/UnlockPanel';
 
 export const signOut = async (dispatch, navigate) => {
@@ -54,7 +55,7 @@ const ChatPage = () => {
         }
         setLocked(false);
         startMessaging(me);
-        await loadConversations();
+        await Promise.all([loadConversations(), syncPins(me.id)]);
         setOwnKeysChangedHandler(async () => {
           await forgetKeys();
           disconnect();

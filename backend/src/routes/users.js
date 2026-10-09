@@ -29,6 +29,33 @@ router.patch('/me/settings', async (req, res) => {
   res.json(user);
 });
 
+// The user's verified-contact marks: an encrypted blob only their own devices can open. Writes
+// name the version they were based on, so two devices changing it at once can't silently drop
+// each other's change: the second gets a 409, re-reads and tries again.
+const pinsOf = (user) => (user.pins?.ciphertext
+  ? { nonce: user.pins.nonce, ciphertext: user.pins.ciphertext, version: user.pins.version }
+  : { nonce: null, ciphertext: null, version: 0 });
+
+router.get('/me/pins', async (req, res) => {
+  const user = await User.findById(req.user.id, { pins: 1 });
+  if (!user) throw new HttpError(401, 'Not signed in');
+  res.json(pinsOf(user));
+});
+
+router.put('/me/pins', express.json({ limit: '80kb' }), async (req, res) => {
+  const { nonce, ciphertext, baseVersion } = validate(schemas.pins, req.body);
+  const unchanged = baseVersion === 0
+    ? { $or: [{ 'pins.version': 0 }, { 'pins.version': { $exists: false } }] }
+    : { 'pins.version': baseVersion };
+  const user = await User.findOneAndUpdate(
+    { _id: req.user.id, ...unchanged },
+    { $set: { pins: { nonce, ciphertext, version: baseVersion + 1 } } },
+    { returnDocument: 'after' },
+  );
+  if (!user) throw new HttpError(409, 'Changed on another device');
+  res.json({ version: user.pins.version });
+});
+
 // A user's full key history, oldest first, exactly as signed. Clients verify it themselves
 // (docs/DESIGN.md §5.2); usernames can't change in v3 because they're bound to these keys.
 router.get('/:id/keys', async (req, res) => {

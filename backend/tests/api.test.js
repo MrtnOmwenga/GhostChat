@@ -207,6 +207,47 @@ describe('users', () => {
   });
 });
 
+describe('verified-contact marks', () => {
+  const blob = () => ({ nonce: randomB64(24), ciphertext: randomB64(120) });
+
+  test('the encrypted marks are stored per account and returned to its other devices', async () => {
+    const ada = await signUp(server.app, 'ada');
+    expect((await ada.agent.get('/api/users/me/pins').expect(200)).body).toEqual({ nonce: null, ciphertext: null, version: 0 });
+    const first = blob();
+    expect((await ada.agent.put('/api/users/me/pins').send({ ...first, baseVersion: 0 }).expect(200)).body).toEqual({ version: 1 });
+
+    const phone = request.agent(server.app);
+    await phone.post('/api/auth/login').send({ username: 'ada', authKey: ada.account.body.authKey }).expect(200);
+    expect((await phone.get('/api/users/me/pins').expect(200)).body).toEqual({ ...first, version: 1 });
+
+    const grace = await signUp(server.app, 'grace');
+    expect((await grace.agent.get('/api/users/me/pins').expect(200)).body.version).toBe(0);
+    await request(server.app).get('/api/users/me/pins').expect(401);
+  });
+
+  test("two devices changing them at once can't drop each other's change", async () => {
+    const ada = await signUp(server.app, 'ada');
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), baseVersion: 0 }).expect(200);
+    const mine = blob();
+    // Both devices read version 1; the first write wins, the second is told to re-read.
+    await ada.agent.put('/api/users/me/pins').send({ ...mine, baseVersion: 1 }).expect(200);
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), baseVersion: 1 }).expect(409);
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), baseVersion: 0 }).expect(409);
+    expect((await ada.agent.get('/api/users/me/pins').expect(200)).body).toEqual({ ...mine, version: 2 });
+  });
+
+  test('malformed or oversized marks are refused, and they never appear in what others see of the user', async () => {
+    const ada = await signUp(server.app, 'ada');
+    const grace = await signUp(server.app, 'grace');
+    await ada.agent.put('/api/users/me/pins').send({ nonce: 'short', ciphertext: randomB64(30), baseVersion: 0 }).expect(400);
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), ciphertext: 'not base64!', baseVersion: 0 }).expect(400);
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), ciphertext: 'A'.repeat(60_000), baseVersion: 0 }).expect(400);
+    await ada.agent.put('/api/users/me/pins').send({ ...blob(), baseVersion: 0 }).expect(200);
+    const found = await grace.agent.get('/api/users/search?q=ada').expect(200);
+    expect(JSON.stringify(found.body)).not.toMatch(/pins|ciphertext/);
+  });
+});
+
 describe('key rotation and reset', () => {
   const vault = () => ({ nonce: randomB64(24), ciphertext: randomB64(90) });
 

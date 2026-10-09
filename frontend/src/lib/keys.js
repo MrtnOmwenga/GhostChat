@@ -5,7 +5,7 @@ import api from './api';
 import { currentKeys, rememberKeys } from './keystore';
 import { expectOwnKeyVersion } from './messaging';
 import {
-  sodium as loadSodium, splitPassword, seedFromPhrase, deriveKeys, buildEntry, sealVault, vaultContents, toB64,
+  sodium as loadSodium, splitPassword, seedFromPhrase, deriveKeys, buildEntry, sealVault, vaultContents, toB64, pinsKey, sealPins, openPins,
 } from './crypto';
 
 async function passwordKeys(password) {
@@ -73,13 +73,17 @@ async function submit(user, path, password, entry, keys, did) {
 }
 
 // ---- verified contacts ------------------------------------------------------------------------
-// Pins are local to this browser: which key of a contact I compared safety numbers against.
+// A pin records which key of a contact I compared safety numbers against. Pins are kept in this
+// browser for instant reads, and on the server, encrypted with a key from my vault, so a contact
+// verified on one device is verified on the others.
 
-const pinsKey = (me) => `ghostchat:verified:${me}`;
+const pinsStorageKey = (me) => `ghostchat:verified:${me}`;
+let serverVersion = null; // the version of the server's copy this browser last saw
+let synced = Promise.resolve();
 
 function readPins(me) {
   try {
-    return JSON.parse(localStorage.getItem(pinsKey(me)) || '{}');
+    return JSON.parse(localStorage.getItem(pinsStorageKey(me)) || '{}');
   } catch {
     return {};
   }
@@ -87,20 +91,95 @@ function readPins(me) {
 
 function writePins(me, pins) {
   try {
-    localStorage.setItem(pinsKey(me), JSON.stringify(pins));
+    localStorage.setItem(pinsStorageKey(me), JSON.stringify(pins));
   } catch {
     // storage unavailable: verification lasts for this page only
   }
 }
 
+async function fetchPins() {
+  const sodium = await loadSodium();
+  const vault = currentKeys();
+  const { data } = await api.get('/users/me/pins');
+  // A copy this account's keys can't open (keys reset, or the server altered it) counts as none.
+  let pins = null;
+  if (data.ciphertext) {
+    try {
+      pins = openPins(sodium, pinsKey(sodium, vault), vault.did, data);
+    } catch {
+      pins = null;
+    }
+  }
+  return { pins, version: data.version };
+}
+
+async function storePins(pins, baseVersion) {
+  const sodium = await loadSodium();
+  const vault = currentKeys();
+  const { data } = await api.put('/users/me/pins', { ...sealPins(sodium, pinsKey(sodium, vault), vault.did, pins), baseVersion });
+  return data.version;
+}
+
+/**
+ * Brings this browser in line with the account, once the keys are unlocked. The server's copy
+ * wins, so a mark removed on another device is removed here too. An account with no copy yet
+ * (verified before marks were synced) starts from what this browser has.
+ */
+export function syncPins(me) {
+  synced = fetchAndApply(me);
+  return synced;
+}
+
+/** Resolves once this browser has the account's marks (at once if they were never asked for). */
+export const pinsSynced = () => synced;
+
+async function fetchAndApply(me) {
+  serverVersion = null;
+  try {
+    const { pins, version } = await fetchPins();
+    if (pins) {
+      writePins(me, pins);
+      serverVersion = version;
+    } else {
+      const local = readPins(me);
+      serverVersion = Object.keys(local).length ? await storePins(local, version) : version;
+    }
+  } catch {
+    // offline, or changed elsewhere this instant: this browser's copy is used, and the next change retries
+  }
+}
+
+/** Applies one change here at once, then to the account's copy, redoing it on top of another device's change if there was one. */
+async function changePins(me, change) {
+  writePins(me, change(readPins(me)));
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      if (serverVersion === null) {
+        // eslint-disable-next-line no-await-in-loop
+        const { pins, version } = await fetchPins();
+        serverVersion = version;
+        if (pins) writePins(me, change(pins));
+      }
+      // eslint-disable-next-line no-await-in-loop
+      serverVersion = await storePins(readPins(me), serverVersion);
+      return;
+    } catch (error) {
+      if (error.status !== 409) return; // offline: kept in this browser
+      serverVersion = null;
+    }
+  }
+}
+
 export function markVerified(me, contactId, history) {
-  writePins(me, { ...readPins(me), [contactId]: { version: history.current.version, signingKey: history.current.signingKey } });
+  const pin = { version: history.current.version, signingKey: history.current.signingKey };
+  return changePins(me, (pins) => ({ ...pins, [contactId]: pin }));
 }
 
 export function unmarkVerified(me, contactId) {
-  const pins = readPins(me);
-  delete pins[contactId];
-  writePins(me, pins);
+  return changePins(me, (pins) => {
+    const { [contactId]: _removed, ...rest } = pins;
+    return rest;
+  });
 }
 
 /**

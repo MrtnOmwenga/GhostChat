@@ -45,6 +45,34 @@ test('the wrong recovery phrase cannot rotate keys', async ({ browser }) => {
   await expect(ada.page.getByText("That recovery phrase doesn't match your current keys")).toBeVisible();
 });
 
+test('a contact verified on one device is verified on another, and unmarking follows too', async ({ browser }) => {
+  const [ada, grace] = await twoUsers(browser);
+  await openChatWith(grace.page, ada.name);
+  await send(grace.page, 'hello');
+  const openKeys = async (page) => {
+    await page.getByRole('button', { name: new RegExp(ada.name) }).click();
+    await conversation(page).getByRole('button', { name: 'Keys and safety number' }).click();
+  };
+  await conversation(grace.page).getByRole('button', { name: 'Keys and safety number' }).click();
+  await grace.page.getByRole('button', { name: 'Mark as verified' }).click();
+  await expect(grace.page.getByText(/^Verified:/)).toBeVisible();
+
+  // Grace's other device: a browser that has never seen this account.
+  const phone = await (await browser.newContext()).newPage();
+  await signIn(phone, grace.name);
+  await expect(phone).toHaveURL(/\/chatpage$/);
+  await openKeys(phone);
+  await expect(phone.getByText(/^Verified:/)).toBeVisible();
+
+  // Unmarked there, it is unmarked here after a reload.
+  await phone.getByRole('button', { name: 'Unmark as verified' }).click();
+  await expect(phone.getByRole('button', { name: 'Mark as verified' })).toBeVisible();
+  await grace.page.reload();
+  await openKeys(grace.page);
+  await expect(grace.page.getByRole('button', { name: 'Mark as verified' })).toBeVisible();
+  await expect(grace.page.getByText(/^Verified:/)).toHaveCount(0);
+});
+
 test('safety numbers match on both sides; a reset after verifying raises a warning', async ({ browser }) => {
   const [ada, grace] = await twoUsers(browser);
   await openChatWith(ada.page, grace.name);

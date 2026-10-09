@@ -6,7 +6,7 @@ import {
   sodium as loadSodium, canonical, sha256Hex, toB64, fromB64, didFromSigningKey,
   generatePhrase, isValidPhrase, seedFromPhrase, deriveKeys, splitPassword, newSalt,
   sealVault, openVault, vaultContents, createAccountEntry, buildEntry, verifyHistory, passwordStrength, safetyNumber,
-  inclusionPath, verifyConsistency, encryptFile, decryptFile,
+  inclusionPath, verifyConsistency, encryptFile, decryptFile, pinsKey, sealPins, openPins,
 } from '.';
 
 let sodium;
@@ -219,5 +219,42 @@ describe('file encryption', () => {
     extended.set(ciphertext);
     expect(() => decryptFile(sodium, key, extended)).toThrow();
     expect(() => decryptFile(sodium, toB64(sodium, sodium.randombytes_buf(32)), ciphertext)).toThrow('could not be decrypted');
+  });
+});
+
+describe('verified-contact marks', () => {
+  const pins = { 'contact-1': { version: 2, signingKey: 'abc' } };
+  const account = (phrase = generatePhrase()) => {
+    const seed = seedFromPhrase(phrase);
+    const v1 = vaultContents(sodium, 'did:key:zMe', deriveKeys(sodium, seed, 1));
+    return { seed, v1 };
+  };
+
+  test('any device with the unlocked vault opens them, before and after a key rotation', () => {
+    const { seed, v1 } = account();
+    const sealed = sealPins(sodium, pinsKey(sodium, v1), v1.did, pins);
+    expect(openPins(sodium, pinsKey(sodium, v1), v1.did, sealed)).toEqual(pins);
+    // After rotating, the vault still holds the first key, so the same marks open.
+    const v2 = vaultContents(sodium, v1.did, deriveKeys(sodium, seed, 2), v1);
+    expect(openPins(sodium, pinsKey(sodium, v2), v2.did, sealed)).toEqual(pins);
+  });
+
+  test('the server can neither read, alter, nor invent them', () => {
+    const { v1 } = account();
+    const key = pinsKey(sodium, v1);
+    const sealed = sealPins(sodium, key, v1.did, pins);
+    expect(JSON.stringify(sealed)).not.toContain('contact-1');
+    const flipped = fromB64(sodium, sealed.ciphertext);
+    flipped[0] ^= 1;
+    expect(() => openPins(sodium, key, v1.did, { ...sealed, ciphertext: toB64(sodium, flipped) })).toThrow();
+    // Sealed with any other key (all the server could do, knowing only public keys): refused.
+    const forged = sealPins(sodium, sodium.randombytes_buf(32), v1.did, { 'contact-1': { version: 9, signingKey: 'evil' } });
+    expect(() => openPins(sodium, key, v1.did, forged)).toThrow();
+  });
+
+  test("one account's marks can't be given to another, even with the same key", () => {
+    const { v1 } = account();
+    const key = pinsKey(sodium, v1);
+    expect(() => openPins(sodium, key, 'did:key:zSomeoneElse', sealPins(sodium, key, v1.did, pins))).toThrow();
   });
 });
