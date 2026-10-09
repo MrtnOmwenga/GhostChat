@@ -12,6 +12,13 @@ const userSchema = new mongoose.Schema({
     ciphertext: { type: String, required: true },
   },
   receiptsEnabled: { type: Boolean, default: false },
+  // Which contacts the user has verified, encrypted in the browser with a key from the vault. The
+  // server stores it so the marks follow the user to other devices, and can't read or forge it.
+  pins: {
+    nonce: { type: String },
+    ciphertext: { type: String },
+    version: { type: Number, default: 0 },
+  },
 }, { timestamps: true });
 
 userSchema.set('toJSON', {

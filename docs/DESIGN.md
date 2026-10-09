@@ -199,6 +199,13 @@ For any contact: a 60-digit number and QR code derived from both users' identity
 in person or on a call. Marking a contact verified pins their key; any later change without a
 valid signature from the pinned key raises a warning.
 
+The marks follow the account to its other devices. They are kept on the server as one encrypted
+blob, sealed in the browser with a key derived from the oldest encryption key in the vault: every
+device that has unlocked the vault can open it, it survives rotations, and the server can neither
+read the marks nor invent one. Each write names the version it was based on, so two devices
+changing the marks at once can't drop each other's change. What the server can still do is serve
+an older copy; that can remove a recent mark or bring back a removed one, never create one.
+
 ## 6. Messages
 
 ### 6.1 Envelope

@@ -25,6 +25,12 @@ module.exports = {
     username: username.required(), challenge: Joi.string().hex().length(64).required(), signature: b64(64).required(),
     salt: b64(16).required(), authKey: b64(32).required(), vault: vault.required(),
   }),
+  // 48 kB of ciphertext holds several hundred verified contacts.
+  pins: Joi.object({
+    nonce: b64(24).required(),
+    ciphertext: Joi.string().pattern(/^[A-Za-z0-9_-]+$/).max(48 * 1024).required(),
+    baseVersion: Joi.number().integer().min(0).required(),
+  }),
   room: Joi.object({ name: roomName.required(), password: password.required() }),
   search: Joi.object({ q: Joi.string().trim().min(1).max(32).pattern(/^[A-Za-z0-9 _-]+$/).required() }),
   history: Joi.object({ with: objectId, room: objectId }).xor('with', 'room'),

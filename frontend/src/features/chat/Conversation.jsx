@@ -19,7 +19,7 @@ import VerifyDrawer from './VerifyDrawer';
 import ChainView from './ChainView';
 import ContactKeysPanel from '../keys/ContactKeysPanel';
 import { keysOf } from '../../lib/messaging';
-import { verificationStatus } from '../../lib/keys';
+import { verificationStatus, pinsSynced } from '../../lib/keys';
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
@@ -121,7 +121,7 @@ const Conversation = ({ user }) => {
   useEffect(() => {
     setKeyNotice(null);
     if (!peerId) return;
-    keysOf(peerId).then((history) => {
+    Promise.all([keysOf(peerId), pinsSynced()]).then(([history]) => {
       const status = verificationStatus(user.id, peerId, history);
       const last = history.events[history.events.length - 1];
       if (!history.ok) setKeyNotice({ level: 'bad', text: `This person's key history does not verify: ${history.problems[0]}` });

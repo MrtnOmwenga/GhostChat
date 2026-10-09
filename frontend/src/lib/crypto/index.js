@@ -4,6 +4,7 @@ export * from './did';
 export * from './phrase';
 export * from './password';
 export * from './vault';
+export * from './pins';
 export * from './keyHistory';
 export * from './envelope';
 export * from './safety';
