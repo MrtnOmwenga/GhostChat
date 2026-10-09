@@ -128,7 +128,7 @@ connections:
   - { from: relay, to: chain, label: asks to append }
   - { from: chain, to: messages, label: stores }
   - { from: relay, to: open, label: delivers }
-  - { from: open, to: trust, label: who signed this? }
+  - { from: open, to: trust, label: "who signed this?" }
   - { from: trust, to: log, label: asks for proof }
   - { from: vault, to: log, label: publishes public keys }
   - { from: log, to: leaves, label: reads and appends }
