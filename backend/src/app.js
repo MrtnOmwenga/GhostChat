@@ -5,6 +5,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { errorHandler } = require('./errors');
+const { edgeOnly, edgeInternal } = require('./edge');
+const anchoring = require('./services/anchoring');
 
 function createApp() {
   const app = express();
@@ -35,6 +37,16 @@ function createApp() {
   });
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+  // The key log's clock. A timer inside a server that has scaled to zero doesn't fire, so the
+  // proxy calls this on a schedule; the timer stays for servers that are always on.
+  app.post('/internal/anchor', edgeInternal, async (req, res) => {
+    if (!config.anchoring) return res.status(404).json({ error: 'Not found' });
+    await anchoring.tick();
+    return res.status(204).end();
+  });
+
+  app.use(edgeOnly);
 
   app.use('/api', rateLimit({
     windowMs: 15 * 60 * 1000,
