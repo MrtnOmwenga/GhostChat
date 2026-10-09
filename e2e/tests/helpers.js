@@ -69,6 +69,14 @@ const conversation = (page) => page.getByRole('region', { name: /Conversation wi
 /** A message that has landed (not the momentary "Sending…" copy shown while it's in flight). */
 const delivered = (page, text) => conversation(page).getByRole('listitem').filter({ hasText: text }).filter({ hasNotText: 'Sending' });
 
+/**
+ * How long a sent file may take to show in full. Sending one re-encodes the image, encrypts it and
+ * uploads it before the message exists, which on a busy machine takes longer than the five seconds
+ * allowed for something that is only being drawn.
+ */
+const FILE_SENT = { timeout: 20_000 };
+
 module.exports = {
+  FILE_SENT,
   STRONG_PASSWORD, uniqueName, signUp, signIn, twoUsers, openChatWith, send, conversation, delivered,
 };

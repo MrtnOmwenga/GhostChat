@@ -2,6 +2,7 @@ const { test, expect } = require('./fixtures');
 const {
   twoUsers, uniqueName, send, conversation, signUp,
   delivered,
+  FILE_SENT,
 } = require('./helpers');
 
 async function createRoom(page, name) {
@@ -98,11 +99,11 @@ test('files shared in a room are in the history a new member sees; a member who 
   await createRoom(ada.page, uniqueName('Room'));
   await ada.page.getByTestId('file-input').setInputFiles({ name: 'plan.png', mimeType: 'image/png', buffer: png(200, 120, 'x') });
   await ada.page.getByRole('button', { name: 'Send', exact: true }).click();
-  await expect(conversation(ada.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full');
+  await expect(conversation(ada.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full', FILE_SENT);
   const link = await inviteLink(ada.page);
 
   await joinWithLink(grace.page, link);
-  await expect(conversation(grace.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full');
+  await expect(conversation(grace.page).getByRole('img', { name: /^plan\./ })).toHaveAttribute('data-state', 'full', FILE_SENT);
   const fileId = await grace.page.evaluate(async () => {
     const rooms = await (await fetch('/api/rooms/mine')).json();
     const history = await (await fetch(`/api/messages?conversation=room:${rooms[0].id}`)).json();

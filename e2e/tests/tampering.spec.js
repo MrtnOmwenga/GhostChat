@@ -2,6 +2,7 @@ const { test, expect } = require('./fixtures');
 const { ObjectId } = require('../../backend/node_modules/mongodb');
 const {
   twoUsers, openChatWith, send, conversation, delivered, signUp, uniqueName,
+  FILE_SENT,
 } = require('./helpers');
 
 // These tests play a compromised server by editing its database directly. The worker option gives
@@ -82,7 +83,7 @@ test('a stored file the server alters is refused, not shown', async ({ browser, 
   await openChatWith(ada.page, grace.name);
   await ada.page.getByTestId('file-input').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png(300, 200, 'x') });
   await ada.page.getByRole('button', { name: 'Send', exact: true }).click();
-  await expect(conversation(ada.page).getByRole('img', { name: /^photo\./ })).toHaveAttribute('data-state', 'full');
+  await expect(conversation(ada.page).getByRole('img', { name: /^photo\./ })).toHaveAttribute('data-state', 'full', FILE_SENT);
 
   // Flip one byte of the encrypted file in storage.
   await withDb(async (db) => {

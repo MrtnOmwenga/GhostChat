@@ -1,6 +1,7 @@
 const { test, expect } = require('./fixtures');
 const {
   twoUsers, openChatWith, conversation, delivered, uniqueName, signUp,
+  FILE_SENT,
 } = require('./helpers');
 const { png, storedFileBytes } = require('./files');
 
@@ -22,13 +23,13 @@ test('a photo is encrypted in the browser, shown to the recipient, and loses its
   await expect(ada.page.getByLabel('Attachment to send')).toHaveText('holiday.png');
   await ada.page.getByLabel('Message', { exact: true }).fill('Look at this');
   await sendButton(ada.page).click();
-  await expect(delivered(ada.page, 'Look at this').getByRole('img', { name: /^holiday\.(webp|jpg)$/ })).toHaveAttribute('data-state', 'full');
+  await expect(delivered(ada.page, 'Look at this').getByRole('img', { name: /^holiday\.(webp|jpg)$/ })).toHaveAttribute('data-state', 'full', FILE_SENT);
 
   const row = grace.page.getByRole('button', { name: new RegExp(ada.name) });
   await expect(row).toContainText('📷 Look at this');
   await row.click();
   const image = delivered(grace.page, 'Look at this').getByRole('img', { name: /^holiday\./ });
-  await expect(image).toHaveAttribute('data-state', 'full');
+  await expect(image).toHaveAttribute('data-state', 'full', FILE_SENT);
   expect(await image.evaluate((img) => img.naturalWidth)).toBe(640);
   await expect(delivered(grace.page, 'Look at this').getByRole('button', { name: /^Verify message 1:/ })).toHaveAttribute('aria-label', /verified/);
 
