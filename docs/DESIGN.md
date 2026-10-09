@@ -118,6 +118,22 @@ weaken only that user's own vault. The recovery phrase (256 bits) is not guessab
 Unlocked keys are held in memory, with a copy in IndexedDB encrypted under a non-extractable
 AES-GCM key: page scripts can use that key but can't read its bytes.
 
+### 4.2 Sessions
+
+Signing in creates a session: a row on the server, named by a signed token in an httpOnly,
+SameSite=Strict cookie. The signature stops anyone inventing a session. The row is what lets one
+be ended:
+
+| Event | Sessions ended |
+|---|---|
+| **Sign out** | That one. A copy of its cookie stops working at once, and its open sockets are closed |
+| **Password changed** | Every other session of that user |
+| **Account recovered with the phrase** | Every session of that user, then a new one for the browser that recovered it |
+| **Account deleted** | Every session of that user |
+
+Each session's sockets share a channel, so ending it closes them on whichever server instance
+they are connected to. Expired rows are removed by a MongoDB TTL index.
+
 ## 5. Identity, key history and key transparency
 
 ### 5.1 Identity

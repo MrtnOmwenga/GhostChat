@@ -30,6 +30,22 @@ test('connections without a valid session are refused', async () => {
   await expect(connectSocket(server.url, 'ghostchat_session=forged')).rejects.toThrow('unauthorized');
 });
 
+test("signing out closes that session's sockets and leaves the user's other device connected", async () => {
+  const request = require('supertest');
+  const ada = await signUp(server.app, 'ada');
+  const phone = request.agent(server.app);
+  const res = await phone.post('/api/auth/login').send({ username: 'ada', authKey: ada.account.body.authKey }).expect(200);
+  const phoneCookie = res.headers['set-cookie'][0].split(';')[0];
+  const onLaptop = await connectAs(ada);
+  const onPhone = await connectAs({ cookie: phoneCookie });
+  const closed = nextEvent(onLaptop, 'disconnect');
+  await ada.agent.post('/api/auth/logout').expect(204);
+  expect(await closed).toBe('io server disconnect');
+  expect(onPhone.connected).toBe(true);
+  // The ended session can't open a new socket either.
+  await expect(connectSocket(server.url, ada.cookie)).rejects.toThrow('unauthorized');
+});
+
 describe('direct messages', () => {
   test('an envelope reaches the recipient unchanged and is stored in the chain', async () => {
     const { ada, grace, conversation } = await pair();

@@ -9,7 +9,7 @@ const { leaveRoom } = require('./rooms');
 const files = require('../services/files');
 const schemas = require('../validation');
 const { validate, HttpError } = require('../errors');
-const { requireAuth, clearSessionCookie } = require('../auth');
+const { requireAuth, clearSessionCookie, endSessions } = require('../auth');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -58,6 +58,7 @@ router.delete('/me', async (req, res) => {
     await leaveRoom(room, me, realtime);
   }
   await User.deleteOne({ _id: me });
+  await endSessions({ user: me }, realtime);
   realtime?.disconnectUser(me);
   clearSessionCookie(res);
   res.status(204).end();

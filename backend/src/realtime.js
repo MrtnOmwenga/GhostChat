@@ -3,10 +3,11 @@ const config = require('./config');
 const Room = require('./models/room');
 const { appendEnvelope } = require('./services/chain');
 const { recordReceipt } = require('./services/receipts');
-const { userFromCookieHeader } = require('./auth');
+const { sessionFromCookieHeader } = require('./auth');
 
 const userChannel = (id) => `user:${id}`;
 const roomChannel = (id) => `room:${id}`;
+const sessionChannel = (id) => `session:${id}`;
 
 /**
  * Socket.IO messaging. Every socket is authenticated from the session cookie during the
@@ -14,7 +15,8 @@ const roomChannel = (id) => `room:${id}`;
  * someone else, and the server only ever relays encrypted envelopes.
  *
  * Each user's sockets share a `user:<id>` channel (several tabs all receive their messages) and
- * join a `room:<id>` channel for every room they belong to.
+ * join a `room:<id>` channel for every room they belong to. A socket also joins its session's
+ * channel, so ending that session closes it, on whichever instance it is connected to.
  */
 function createRealtime(httpServer, { presence, adapter } = {}) {
   const io = new Server(httpServer, {
@@ -27,16 +29,21 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     io.to(channels).emit('message', envelope);
   };
 
-  io.use((socket, next) => {
-    const user = userFromCookieHeader(socket.handshake.headers.cookie);
-    if (!user) return next(new Error('unauthorized'));
-    socket.data.user = user;
-    return next();
+  io.use(async (socket, next) => {
+    try {
+      const user = await sessionFromCookieHeader(socket.handshake.headers.cookie);
+      if (!user) return next(new Error('unauthorized'));
+      socket.data.user = user;
+      return next();
+    } catch (err) {
+      console.error(err);
+      return next(new Error('unauthorized'));
+    }
   });
 
   io.on('connection', (socket) => {
     const { user } = socket.data;
-    socket.join(userChannel(user.id));
+    socket.join([userChannel(user.id), sessionChannel(user.sessionId)]);
 
     // Handlers are registered before any await, so an event sent right after connecting can't
     // arrive before its handler exists.
@@ -109,7 +116,11 @@ function createRealtime(httpServer, { presence, adapter } = {}) {
     roomChanged(roomId, change) {
       io.to(roomChannel(roomId)).emit('room', { room: roomId, ...change });
     },
-    // Ends a deleted user's open sessions; their cookie is still a valid JWT until it expires.
+    // Closes the sockets of a session that has ended (signed out, or ended from elsewhere).
+    disconnectSession(sessionId) {
+      io.in(sessionChannel(sessionId)).disconnectSockets(true);
+    },
+    // Closes every socket of a deleted user.
     disconnectUser(userId) {
       io.in(userChannel(userId)).disconnectSockets(true);
     },
