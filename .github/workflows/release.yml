@@ -84,7 +84,7 @@ jobs:
       # The client is built a second time, here, outside the image. If the two builds differ, the
       # build isn't reproducible and the release stops: the digest would then prove nothing to
       # someone rebuilding from source.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: 22 }
       - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
       - name: The client build is reproducible
